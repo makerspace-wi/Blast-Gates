@@ -1,4 +1,4 @@
 # Blast-Gates
 Schieberanordnung für Absauganlage
 
-![](images/2019/01/Screenshot 2019-01-24 10.25.47.png)
+<img src='images/2018/10/Screenshot 2018-10-19 23.57.21.png' width='100%'>
