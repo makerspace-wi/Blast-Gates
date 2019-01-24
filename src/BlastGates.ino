@@ -6,24 +6,25 @@
  and an xBee for comunication.
  -Parameter of our system-------------:
   Commands to Raspi
-  'GATE123' - from xBee (=Ident)
+  'GATE678' - from xBee (=Ident)
   'POR'     - machine power on reset (Ident;por)
-  'G1O'     - gate 1 is open
-  'G2O'     - gate 2 is open
-  'G3O'     - gate 3 is open
-  'G1C'     - gate 1 is closed
-  'G2C'     - gate 2 is closed
-  'G3C'     - gate 3 is closed
+  'G6O'     - gate 6 is open (Formatkreissaege)
+  'G7O'     - gate 7 is open (Bandsaege)
+  'G8O'     - gate 8 is open (Dickenhobel)
+  'G6C'     - gate 6 is closed
+  'G7C'     - gate 7 is closed
+  'G8C'     - gate 8 is closed
 
   Commands from Raspi
   'time'    - format time2018,09,12,12,22,00
-  'OG1'     - open gate 1
-  'OG2'     - open gate 2
-  'OG3'     - open gate 3
-  'CG1'     - close gate 1
-  'CG2'     - close gate 2
-  'CG3'     - close gate 3
-  last change: 20.01.2019 by Michael Muehl
+  'OG6'     - open gate 6
+  'OG7'     - open gate 7
+  'OG8'     - open gate 8
+  'CG6'     - close gate 6
+  'CG7'     - close gate 7
+  'CG8'     - close gate 8
+
+  last change: 24.01.2019 by Michael Muehl
   changed: add gate control with tasker and xBee communication
  */
 #define Version "0.1"
