@@ -33,9 +33,9 @@
 #include <TaskScheduler.h>
 // PIN Assignments
 // this pin should connect NOT to Ground when want to stop the motor
-#define STOPPER_S1 A5
-#define STOPPER_S2 A4
-#define STOPPER_S3 3
+#define STOPPER_S6 A5	// FSK
+#define STOPPER_S7 A4	// BS
+#define STOPPER_S8 3	// DH
 
 #define BUSError      8 // Bus error
 #define xbeError     13 // Bus error
@@ -51,13 +51,13 @@
 
 
 // Steps for the stepper
-#define STEP_S1 10
-#define STEP_S2 13
-#define STEP_S3 11
+#define STEP_S6 10
+#define STEP_S7 13
+#define STEP_S8 11
 // Direction of movement
-#define DIR_S1 2
-#define DIR_S2 5
-#define DIR_S3 7
+#define DIR_S6 2
+#define DIR_S7 5
+#define DIR_S8 7
 
 // Acceleration and deceleration values are always in FULL steps / s^2
 #define MOTOR_ACCEL 2000
@@ -72,9 +72,9 @@
 byte gatePOS = 0;  // Gate position control 1 == closed
 
 #include "BasicStepperDriver.h"
-BasicStepperDriver stepper1(MOTOR_STEPS, DIR_S1, STEP_S1, stepperENA);
-BasicStepperDriver stepper2(MOTOR_STEPS, DIR_S2, STEP_S2, stepperENA);
-BasicStepperDriver stepper3(MOTOR_STEPS, DIR_S3, STEP_S3, stepperENA);
+BasicStepperDriver stepper6(MOTOR_STEPS, DIR_S6, STEP_S6, stepperENA);
+BasicStepperDriver stepper7(MOTOR_STEPS, DIR_S7, STEP_S7, stepperENA);
+BasicStepperDriver stepper8(MOTOR_STEPS, DIR_S8, STEP_S8, stepperENA);
 
 Scheduler runner;
 
@@ -101,21 +101,21 @@ void setup() {
   IDENT.reserve(5);     // reserve for instr serial input
 
   // initalize steppers
-  stepper1.begin(RPM, MICROSTEPS);
-  stepper2.begin(RPM, MICROSTEPS);
-  stepper3.begin(RPM, MICROSTEPS);
+  stepper6.begin(RPM, MICROSTEPS);
+  stepper7.begin(RPM, MICROSTEPS);
+  stepper8.begin(RPM, MICROSTEPS);
 
-  stepper1.setSpeedProfile(stepper1.LINEAR_SPEED, MOTOR_ACCEL, MOTOR_DECEL);
-  stepper2.setSpeedProfile(stepper2.LINEAR_SPEED, MOTOR_ACCEL, MOTOR_DECEL);
-  stepper3.setSpeedProfile(stepper3.LINEAR_SPEED, MOTOR_ACCEL, MOTOR_DECEL);
+  stepper6.setSpeedProfile(stepper6.LINEAR_SPEED, MOTOR_ACCEL, MOTOR_DECEL);
+  stepper7.setSpeedProfile(stepper7.LINEAR_SPEED, MOTOR_ACCEL, MOTOR_DECEL);
+  stepper8.setSpeedProfile(stepper8.LINEAR_SPEED, MOTOR_ACCEL, MOTOR_DECEL);
 
   // PIN MODES
   pinMode(taster1, INPUT_PULLUP);
 
   // Configure stopper pin to read HIGH unless grounded
-  pinMode(STOPPER_S1, INPUT_PULLUP);
-  pinMode(STOPPER_S2, INPUT_PULLUP);
-  pinMode(STOPPER_S3, INPUT_PULLUP);
+  pinMode(STOPPER_S6, INPUT_PULLUP);
+  pinMode(STOPPER_S7, INPUT_PULLUP);
+  pinMode(STOPPER_S8, INPUT_PULLUP);
 
   runner.init();
   runner.addTask(tP);
@@ -123,12 +123,12 @@ void setup() {
   runner.addTask(tD);
 
   Serial.println("START");    // only for test
-  stepper1.enable();  // comment out to keep motor powered
-  stepper1.startMove(gateCLOSE * gateDIF * MICROSTEPS);
-  stepper2.enable();  // comment out to keep motor powered
-  stepper2.startMove(gateCLOSE * gateDIF * MICROSTEPS);
-  stepper3.enable();  // comment out to keep motor powered
-  stepper3.startMove(gateCLOSE * gateDIF * MICROSTEPS);
+  stepper6.enable();  // comment out to keep motor powered
+  stepper6.startMove(gateCLOSE * gateDIF * MICROSTEPS);
+  stepper7.enable();  // comment out to keep motor powered
+  stepper7.startMove(gateCLOSE * gateDIF * MICROSTEPS);
+  stepper8.enable();  // comment out to keep motor powered
+  stepper8.startMove(gateCLOSE * gateDIF * MICROSTEPS);
 
   Serial.print("+++"); //Starting the request of IDENT
   tP.enable();
@@ -170,15 +170,15 @@ void retryPOR() {
 }
 
   // motor control loop - send pulse and return how long to wait until next pulse
-  if (digitalRead(STOPPER_S1) == HIGH){
-    stepper1.stop();
+  if (digitalRead(STOPPER_S6) == HIGH){
+    stepper6.stop();
     gatePOS =1;
   }
 
-  unsigned wait_time_micros = stepper1.nextAction();
+  unsigned wait_time_micros = stepper6.nextAction();
 
   if (wait_time_micros <= 0) {
-    stepper1.disable(); // comment out to keep motor power off
+    stepper6.disable(); // comment out to keep motor power off
   }
 
 // END OF TASKS ---------------------------------
@@ -188,14 +188,14 @@ void retryPOR() {
 void clockMode() {
   if (gatePOS == 1 && digitalRead(taster1) == LOW) {
     Serial.println("G1");
-    stepper1.enable();  // comment out to keep motor powered
-    stepper1.move(gateOPEN * gateCheck * MICROSTEPS);
+    stepper6.enable();  // comment out to keep motor powered
+    stepper6.move(gateOPEN * gateCheck * MICROSTEPS);
     gatePOS =2;
-    stepper1.startMove(gateOPEN * (gateDIF-gateCheck) * MICROSTEPS);
+    stepper6.startMove(gateOPEN * (gateDIF-gateCheck) * MICROSTEPS);
   } else if (gatePOS == 2 && digitalRead(taster1) == LOW) {
     Serial.println("G2");
-    stepper1.enable();  // comment out to keep motor powered
-    stepper1.startMove(gateCLOSE * gateDIF * MICROSTEPS);
+    stepper6.enable();  // comment out to keep motor powered
+    stepper6.startMove(gateCLOSE * gateDIF * MICROSTEPS);
     gatePOS =3;
   }
 }
