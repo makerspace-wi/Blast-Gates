@@ -110,8 +110,6 @@ void setup() {
   stepper8.setSpeedProfile(stepper8.LINEAR_SPEED, MOTOR_ACCEL, MOTOR_DECEL);
 
   // PIN MODES
-  pinMode(taster1, INPUT_PULLUP);
-
   // Configure stopper pin to read HIGH unless grounded
   pinMode(STOPPER_S6, INPUT_PULLUP);
   pinMode(STOPPER_S7, INPUT_PULLUP);
@@ -122,13 +120,14 @@ void setup() {
   runner.addTask(tL);
   runner.addTask(tD);
 
-  Serial.println("START");    // only for test
   stepper6.enable();  // comment out to keep motor powered
   stepper6.startMove(gateCLOSE * gateDIF * MICROSTEPS);
   stepper7.enable();  // comment out to keep motor powered
   stepper7.startMove(gateCLOSE * gateDIF * MICROSTEPS);
   stepper8.enable();  // comment out to keep motor powered
   stepper8.startMove(gateCLOSE * gateDIF * MICROSTEPS);
+
+  pinMode(taster1, INPUT_PULLUP);  // only test
 
   Serial.print("+++"); //Starting the request of IDENT
   tP.enable();
@@ -137,7 +136,7 @@ void setup() {
 
 // FUNCTIONS (Tasks) ----------------------------
 void checkXbee() {
-  if (IDENT.startsWith("SENSOR") && plplpl == 2) {
+  if (IDENT.startsWith("GATE678") && plplpl == 2) {
     ++plplpl;
     tD.enable();
     digitalWrite(xbeError, LOW); // turn the LED off (Programm start)
@@ -180,7 +179,6 @@ void retryPOR() {
   if (wait_time_micros <= 0) {
     stepper6.disable(); // comment out to keep motor power off
   }
-
 // END OF TASKS ---------------------------------
 
 // FUNCTIONS ------------------------------------
