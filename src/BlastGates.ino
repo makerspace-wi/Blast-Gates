@@ -537,7 +537,7 @@ void motorStepD8() {
 }
 
 void gatePosCheck8() {  // drive gate and check witch position is reached
-  Serial.println("posRY8:" + String(posRY8) + " posSW8:" + String(posSW8) + " offSW8:" + String(offSW8));
+  // Serial.println("posRY8:" + String(posRY8) + " posSW8:" + String(posSW8) + " offSW8:" + String(offSW8));
   if (posRY8 && offSW8 && posSW8) {
     noGAT8 = HIGH;
     tS8.disable();
@@ -627,7 +627,7 @@ void gatesOPEN7() {
 }
 
 void gatesCLOSE7() {
-  Serial.println("posRY7:" + String(posRY7) + " posSW7:" + String(posSW7) + " offSW7:" + String(offSW7));
+  // Serial.println("posRY7:" + String(posRY7) + " posSW7:" + String(posSW7) + " offSW7:" + String(offSW7));
   gateSTEPS7 = MICROSTEPS * gateStepsMM * 125;	// close gate 125 mm
   StepCounter7 = gateSTEPS7;
   StepSpeed7 = minSPEED;
@@ -660,7 +660,6 @@ void gatesOPEN8() {
 }
 
 void gatesCLOSE8() {
-  Serial.println("posRY8:" + String(posRY8) + " posSW8:" + String(posSW8) + " offSW6:" + String(offSW8));
   gateSTEPS8 = MICROSTEPS * gateStepsMM * 125;	// close gate 125 mm
   StepCounter8 = gateSTEPS8;
   StepSpeed8 = minSPEED;
