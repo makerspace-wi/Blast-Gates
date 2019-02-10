@@ -82,19 +82,19 @@
 Scheduler runner;
 
 // Callback methods prototypes
-// void checkXbee();        // Task connect to xBee Server
-// void motorStepA6();     // Task for Accel step time
-// void motorStepL6();     // Task for Linear step time
-// void motorStepD6();     // Task for Decel step time
-//
-// void motorStepA7();     // Task for Accel step time
-// void motorStepL7();     // Task for Linear step time
-// void motorStepD7();     // Task for Decel step time
-//
-// void motorStepA8();     // Task for Accel step time
-// void motorStepL8();     // Task for Linear step time
-// void motorStepD8();     // Task for Decel step time
-//
+void checkXbee();        // Task connect to xBee Server
+void retryPOR();        // Task connect to xBee Server
+void tastCheck();        // Task connect to xBee Server
+void debounceCheckLOW();        // Task connect to xBee Server
+void startPOSI();        // Task connect to xBee Server
+
+void motorStepA6();     // Task for Accel step time
+void gatePosCheck6();     // Task for Linear step time
+void motorStepA7();     // Task for Accel step time
+void gatePosCheck7();     // Task for Linear step time
+void motorStepA8();     // Task for Accel step time
+void gatePosCheck8();     // Task for Linear step time
+
 // TASKS
 Task tC(TASK_SECOND / 2, TASK_FOREVER, &checkXbee);
 Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);   // task for debounce; added M. Muehl
