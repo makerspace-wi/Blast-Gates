@@ -29,9 +29,9 @@
 					 for 3 gates with check if connected.
  */
 #define Version "1.0"
+#define _TASK_MICRO_RES
 
 #include <Arduino.h>
-#define _TASK_MICRO_RES
 #include <TaskScheduler.h>
 
 // PIN Assignments
