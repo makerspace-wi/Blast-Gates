@@ -27,6 +27,7 @@
   last change: 08.02.2019 by Michael Muehl
   changed: add gate control with tasker and xBee communication
 					 for 3 gates with check if connected.
+           (add metal gate video)
  */
 #define Version "1.0"
 #define _TASK_MICRO_RES
