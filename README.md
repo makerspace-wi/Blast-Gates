@@ -14,4 +14,5 @@ Als Anschlüsse haben wir uns für industriell gefertigte, manuelle Schieber aus
 
 ![](images/2019/06/blastgate_2.jpg)  
 
-In der ersten Ausbaustufe sollen die Schieber noch per Hand geöffnet/geschlossen werden, allerdings wird die Stellung jeder Klappe über Mikroschalter an eine Steuereinheit gemeldet.
+In der ersten Ausbaustufe sollen die Schieber noch per Hand geöffnet/geschlossen werden, allerdings wird die Stellung jeder Klappe über Mikroschalter an eine Steuereinheit gemeldet.<br>
+Zu einem späteren Zeitpunkt sollen die Schieber per Spindelantrieb elektronisch auf und zu gefahren werden.
