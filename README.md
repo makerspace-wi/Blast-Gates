@@ -7,13 +7,10 @@ Die Arbeiten wurden jetzt vollständig vom 'Dream-Team' übernommen und das Konz
 <br><br>
 Zum Einsatz kommt eine 'Distribution Box' aus Holz mit 6 Öffnungen, wobei die obere Öffnung eine Plexiglasscheibe sein wird, durch die man ins Innere schauen und ggf. zur Reinigung öffnen kann.
 
-![](images/2019/06/Screenshot 2019-06-05 13.25.12.png)  
+<img src='images/2019/06/Screenshot 2019-06-05 13.25.12.png' width='100%'>  
 
 Eine Öffnung wird an die Absaugeinrichtung angschlossen, jeweils eine von 4 Öffnungen gehen an die Formatkreissäge, die Bandsäge, den Abrichthobel und die letzte Öffnung ist für einen Handabsaugschlauch vorgesehen.
 
-![](/images/2019/06/blastgate.jpg)
-![](images/2019/06/blastgate_2.jpg)
+![](images/2019/06/blastgate_2.jpg)  
 
-<img src='images/2019/01/Screenshot 2019-01-24 10.25.47.png' width='100%'>
-<br><br>
-Im Makerspace Wiesbaden teilen sich 3 Holzwerkzeugmaschinen (Formatkreissäge, Bandsäge und Dickenhobel) eine Absauganlage. Um die Saugkraft für die jeweils gerade genutzte Maschine zu optimieren, wurde die Idee der 'Blast-Gates' geboren.<br> 3 elektronisch gesteuerte Schieber geben dabei jeweils den benötigten Saugkanal frei.
+Um die Saugkraft für die jeweils gerade genutzte Maschine zu optimieren, wurde die Idee der 'Blast-Gates' geboren.<br> 5 Schieber geben dabei jeweils den benötigten Saugkanal frei.
