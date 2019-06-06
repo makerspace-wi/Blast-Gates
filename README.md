@@ -3,7 +3,7 @@ Schieberanordnung für Absauganlage
 
 Die letzte geplante Variante konnte leider nicht realisiert werden - ein alternativ Vorschlag wurde erarbeitet.
 <br>
-Die Arbeiten wurden jetzt vollständig vom 'Dream-Team' übernommen und das Konzept wurde wie folgt geändert:
+Die Arbeiten wurden jetzt vollständig vom 'Dream-Team' übernommen und das Konzept wie folgt geändert:
 <br><br>
 Zum Einsatz kommt eine 'Distribution Box' aus Holz mit 6 Öffnungen, wobei die obere Öffnung eine Plexiglasscheibe sein wird, durch die man ins Innere schauen und ggf. zur Reinigung öffnen kann.
 
@@ -16,3 +16,7 @@ Als Anschlüsse haben wir uns für industriell gefertigte, manuelle Schieber aus
 
 In der ersten Ausbaustufe sollen die Schieber noch per Hand geöffnet/geschlossen werden, allerdings wird die Stellung jeder Klappe über Mikroschalter an eine Steuereinheit gemeldet.<br>
 Zu einem späteren Zeitpunkt sollen die Schieber per Spindelantrieb elektronisch auf und zu gefahren werden.
+
+<video width="320" height="240" controls>
+  <source src='images/2019/06/BlastGateMetall.mp4' type="video/mp4">
+</video>
