@@ -1,33 +1,38 @@
 /* DESCRIPTION
   ====================
-  driving 3 gates for vacuum cleaner for 3 machines
+  control 4(1) blast gates for vacuum cleaner for 4 machines and manuell
 
-  the gate is driven by steppermotor and spindle
- and an xBee for comunication.
+  the gate is driven by hand, controller and xBee for
+  comunication with machines (ID):
+  Formatkreissaege (6), Bandsaege (7), Dickenhobel (8), Schleifer (9)
+  and a gate for manuell cleaning (H)
  -Parameter of our system-------------:
-  Commands to Raspi
-  'GATE678' - from xBee (=Ident)
-  'POR'     - machine power on reset (Ident;por)
-  'G6O'     - gate 6 is open (Formatkreissaege)
-  'G7O'     - gate 7 is open (Bandsaege)
-  'G8O'     - gate 8 is open (Dickenhobel)
-  'G6C'     - gate 6 is closed
-  'G7C'     - gate 7 is closed
-  'G8C'     - gate 8 is closed
+  Commands to Raspi --->
+  'BGATE' - from xBee (=Ident)
+  'POR'   - machine power on reset (Ident;por)
+  ---------- (_=6,7,8,9)
+  'g_O'   - Gate is Open
+  'gho'   - Gate By hand is open (Manuell)
+  'g_c'   - Gate is Closed
+  'ghc    - gate By hand is closed
+  'g_x'   - Gate position not defined: X
+  'ghx'   - Gate Hand position not defined: X
+  'err'   - Error message is following ('ERR:G7O')
+  'gok'   - all blast gates are ok, in write position
+  '_ok'   - gate nr._ is ok
 
-  Commands from Raspi
-  'time'    - format time33.33.33 33:33:33
-  'OG6'     - open gate 6
-  'OG7'     - open gate 7
-  'OG8'     - open gate 8
-  'CG6'     - close gate 6
-  'CG7'     - close gate 7
-  'CG8'     - close gate 8
+  Commands from Raspi <---
+  'time'  - format time33.33.33 33:33:33
+  ---------- (_=6,7,8,9)
+  'li_'   - log in for machine
+  'lo_'   - log out for machine
+  'do_'   - Dust collector On for machine
+  'df_'   - Dust collector oFf for machine
+  'ng_'   - No Gate is available
 
-  last change: 08.02.2019 by Michael Muehl
+  last change: 01.08.2019 by Michael Muehl
   changed: add gate control with tasker and xBee communication
-					 for 3 gates with check if connected.
-           (add metal gate video)
+					 for 4 + hand gates controlled manually.
  */
 #define Version "1.0"
 #define _TASK_MICRO_RES
