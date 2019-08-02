@@ -274,6 +274,7 @@ void retryPOR() {
 // Task Gates popsition: -------------------
 void gateChange() {
   if (digitalRead(EndPoG6O) != gate6O || digitalRead(EndPoG6C) != gate6C) {
+    digitalWrite(SIGError, LOW);
     gate6O = digitalRead(EndPoG6O);
     gate6C = digitalRead(EndPoG6C);
     if (gate6O == HIGH && gate6C == LOW) {
@@ -282,9 +283,11 @@ void gateChange() {
       Serial.println("G6C");
     } else {
       Serial.println("G6X");
+      digitalWrite(SIGError, HIGH);
     }
   }
   if (digitalRead(EndPoG7O) != gate7O || digitalRead(EndPoG7C) != gate7C) {
+    digitalWrite(SIGError, LOW);
     gate7O = digitalRead(EndPoG7O);
     gate7C = digitalRead(EndPoG7C);
     if (gate7O == HIGH && gate7C == LOW) {
@@ -293,9 +296,11 @@ void gateChange() {
       Serial.println("G7C");
     } else {
       Serial.println("G7X");
+      digitalWrite(SIGError, HIGH);
     }
   }
   if (readDigital(EndPoG8O) != gate8O || readDigital(EndPoG8C) != gate8C) {
+    digitalWrite(SIGError, LOW);
     gate8O = readDigital(EndPoG8O);
     gate8C = readDigital(EndPoG8C);
     if (gate8O == HIGH && gate8C == LOW) {
@@ -304,9 +309,11 @@ void gateChange() {
       Serial.println("G8C");
     } else {
       Serial.println("G8X");
+      digitalWrite(SIGError, HIGH);
     }
   }
   if (digitalRead(EndPoG9O) != gate9O || digitalRead(EndPoG9C) != gate9C) {
+    digitalWrite(SIGError, LOW);
     gate9O = digitalRead(EndPoG9O);
     gate9C = digitalRead(EndPoG9C);
     if (gate9O == HIGH && gate9C == LOW) {
@@ -315,9 +322,11 @@ void gateChange() {
       Serial.println("G9C");
     } else {
       Serial.println("G9X");
+      digitalWrite(SIGError, HIGH);
     }
   }
   if (digitalRead(EndPoGHO) != gateHO || digitalRead(EndPoGHC) != gateHC) {
+    digitalWrite(SIGError, LOW);
     gateHO = digitalRead(EndPoGHO);
     gateHC = digitalRead(EndPoGHC);
     if (gateHO == HIGH && gateHC == LOW) {
@@ -326,6 +335,7 @@ void gateChange() {
       Serial.println("GHC");
     } else {
       Serial.println("GHX");
+      digitalWrite(SIGError, HIGH);
     }
   }
 }
@@ -339,7 +349,6 @@ void gateStart() {
     if (gate8O) Serial.println("G8O");
     if (gate9O) Serial.println("G9O");
     if (gateHO) Serial.println("GHO");
-    delay(125);
     digitalWrite(SIGError, HIGH);
   } else if (gate6C && gate7C && gate8C && gate9C && gateHC) {
     digitalWrite(SIGError, LOW);
@@ -354,7 +363,6 @@ void gateStart() {
     if (!gate8C) Serial.println("G8X");
     if (!gate9C) Serial.println("G9X");
     if (!gateHC) Serial.println("GHX");
-    delay(500);
     digitalWrite(SIGError, HIGH);
   }
 }
@@ -387,36 +395,44 @@ void gateDustco() {
   }
 }
 
-// Task Gate Dust on?: ---------------------
+// Task Gate log in and out: --------------------
 void gateLogin() {
   if (!gate6O && logIM6 && !logOM6) {
     Serial.println("ERR:G6O");
+    digitalWrite(SIGError, HIGH);
   } else if (!gate6C && logIM6 && logOM6) {
     Serial.println("ERR:G6C");
+    digitalWrite(SIGError, HIGH);
   } else if (gate6C && logIM6 && logOM6) {
     logIM6 = LOW;
     logOM6 = LOW;
   }
   if (!gate7O && logIM7 && !logOM7) {
     Serial.println("ERR:G7O");
+    digitalWrite(SIGError, HIGH);
   } else if (!gate7C && logIM7 && logOM7) {
     Serial.println("ERR:G7C");
+    digitalWrite(SIGError, HIGH);
   } else if (gate7C && logIM7 && logOM7) {
     logIM7 = LOW;
     logOM7 = LOW;
   }
   if (!gate8O && logIM8 && !logOM8) {
     Serial.println("ERR:G8O");
+    digitalWrite(SIGError, HIGH);
   } else if (!gate8C && logIM8 && logOM8) {
     Serial.println("ERR:G8C");
+    digitalWrite(SIGError, HIGH);
   } else if (gate8C && logIM8 && logOM8) {
     logIM8 = LOW;
     logOM8 = LOW;
   }
   if (!gate9O && logIM9 && !logOM9) {
     Serial.println("ERR:G9O");
+    digitalWrite(SIGError, HIGH);
   } else if (!gate9C && logIM9 && logOM9) {
     Serial.println("ERR:G9C");
+    digitalWrite(SIGError, HIGH);
   } else if (gate9C && logIM9 && logOM9) {
     logIM9 = LOW;
     logOM9 = LOW;
