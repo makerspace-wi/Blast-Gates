@@ -34,7 +34,7 @@
   changed: add gate control with tasker and xBee communication
 					 for 4 + hand gates controlled manually.
  */
-#define Version "1.0"
+#define Version "0.x"
 #define _TASK_MICRO_RES
 // ---------------------
 #include <Arduino.h>
@@ -42,24 +42,34 @@
 
 // PIN Assignments
 // Steps for the stepper
-#define STEP_S6 10
-#define STEP_S7 13
-#define STEP_S8 11
+#define STEPS_G6 11	// stepper steps Gate 6
+#define STEPS_G7 13 // stepper steps Gate 7
+#define STEPS_G8  7	// stepper steps Gate 8
+#define STEPS_G9  2	// stepper steps Gate 9
 // Direction of movement
-#define DIR_S6 2
-#define DIR_S7 5
-#define DIR_S8 7
+#define DIR_G6    4	// dir stepper Gate 6
+#define DIR_G7    3	// dir stepper Gate 7
+#define DIR_G8    9	// dir stepper Gate 8
+#define DIR_G9    5	// dir stepper Gate 9
+// enable 2 steppers
+#define enaStGate 6	// enable stepper Gates
+
 // this pin should connect NOT to Ground when want to stop the motor
-#define STOP_S6  A5 // FSK
-#define STOP_S7  A4 // BS
-#define STOP_S8   3 // DH
+#define EndPoG6C 10 // Endpostion Gate 6 close
+#define EndPoG6O A5 // Endpostion Gate 6 open
+#define EndPoG7C 12 // Endpostion Gate 7 close
+#define EndPoG7O A4 // Endpostion Gate 7 open
+#define EndPoG8C A7 // Endpostion Gate 8 close
+#define EndPoG8O A6 // Endpostion Gate 8 open
+#define EndPoG9C A1 // Endpostion Gate 9 close
+#define EndPoG9O A0 // Endpostion Gate 9 open
+#define EndPoGHC  5 // Endpostion Gate by hand close (STEPS_G8)
+#define EndPoGHO  2 // Endpostion Gate by hand open  (DIR_G8)
 
-#define tastG6   A0 // taster switch gate 6 open / close
-#define tastG7   A1 // taster switch gate 7 open / close
-#define tastG8   A2 // taster switch gate 8 open / close
-
+#define SSR_Vac  A2 // SSR Dust on / off  (Dust Collector)
+#define SIGError A3 // SIGError for error
 #define BUSError  8 // Bus error
-#define xbeError 13 // Bus error
+#define xbeError  8 // Bus error (13)
 
 // DEFINES
 // Task speck
@@ -74,82 +84,67 @@
 #define MOTOR_ACCEL (minSPEED - maxSPEED)
 #define MOTOR_DECEL (minSPEED - maxSPEED)
 
-// enable all steppers
-#define stepperENA 4
-
 #define gateStepsMM 25 // steps to drive 1 mm
 #define gateOPEN  HIGH // direction for opening gate
 
 // DEFINES
-#define CLOSE2END   15 // MINUTES before activation is off
-#define porTime      5 // wait seconds for sending Ident + POR
+#define porTime         5 // wait seconds for sending Ident + POR
+#define intervalCLMn   30 // min clean time in seconds
+#define intervalCLMx   10 * 60 // max clean time in seconds
 
 Scheduler runner;
 
 // Callback methods prototypes
-void checkXbee();        // Task connect to xBee Server
-void retryPOR();        // Task connect to xBee Server
-void tastCheck();        // Task connect to xBee Server
-void debounceCheckLOW();        // Task connect to xBee Server
-void startPOSI();        // Task connect to xBee Server
-
-void motorStepA6();     // Task for Accel step time
-void gatePosCheck6();     // Task for Linear step time
-void motorStepA7();     // Task for Accel step time
-void gatePosCheck7();     // Task for Linear step time
-void motorStepA8();     // Task for Accel step time
-void gatePosCheck8();     // Task for Linear step time
+void checkXbee();     // Task connect to xBee Server
+void retryPOR();      // Task connect to xBee Server
+void gateChange();    // Task connect to xBee Server
 
 // TASKS
 Task tC(TASK_SECOND / 2, TASK_FOREVER, &checkXbee);
 Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);   // task for debounce; added M. Muehl
-Task tTA(TASK_SECOND / 2, TASK_FOREVER, &tastCheck); // task for generating linear steps
-Task tDC(1, TASK_FOREVER, &debounceCheckLOW);        // task for generating linear steps
-Task tSP(TASK_SECOND, TASK_FOREVER, &startPOSI);     // task for generating linear steps
 
 // --- Blast Gates ----------
-Task tS6(minSPEED, TASK_FOREVER, &motorStepA6);   // task for generating linear steps
-Task tC6(TASK_SECOND / 50, TASK_FOREVER, &gatePosCheck6);   // task for generating linear steps
-Task tS7(minSPEED, TASK_FOREVER, &motorStepA7);   // task for generating linear steps
-Task tC7(TASK_SECOND / 50, TASK_FOREVER, &gatePosCheck7);   // task for generating linear steps
-Task tS8(minSPEED, TASK_FOREVER, &motorStepA8);   // task for generating linear steps
-Task tC8(TASK_SECOND / 50, TASK_FOREVER, &gatePosCheck8);   // task for generating linear steps
+Task tGC(TASK_SECOND / 4, TASK_FOREVER, &gateChange);  // task for Gate Change position
+Task tGS(TASK_SECOND, TASK_FOREVER, &gateStart);  // task for Gate start
+Task tGD(TASK_SECOND / 2, TASK_FOREVER, &gateDustco);  // task for Gate Dust collector
+Task tGL(TASK_SECOND, TASK_FOREVER, &gateLogin);  // task for Gate Dust collector
 
 // VARIABLES
-unsigned long gateSTEPS6 = 0;   // MICROSTEPS * gateStepsMM * 120; // 120 mm
-unsigned long StepCounter6 = 0; //
-unsigned long StepSpeed6 = 0;   //
 boolean noGAT6 = LOW; // bit no gate 6
-boolean bitAL6 = LOW; // bit ACCEL with step up & down = HIGH
-boolean posRY6 = LOW; // bit position ready = HIGH
-boolean posSW6 = LOW; // bit position switch = off = HIGH
-boolean offSW6 = LOW; // bit position switch surch for off again
 boolean gate6O = LOW; // bit gate 6 open = HIGH
 boolean gate6C = LOW; // bit gate 6 close = HIGH
+boolean dustC6 = LOW; // bit dust Collector for machine 6 = HIGH
+boolean logIM6 = LOW; // bit log in machine 6 = HIGH
+boolean logOM6 = LOW; // bit log out machine 6 = HIGH
 
-unsigned long gateSTEPS7 = MICROSTEPS * gateStepsMM * 120; // 120 mm
-unsigned long StepCounter7 = 0;
-unsigned long StepSpeed7 = 0;
 boolean noGAT7 = LOW; // bit no gate 7
-boolean bitAL7 = LOW; // bit ACCEL with step up & down = HIGH
-boolean posRY7 = LOW; // bit position ready = HIGH
-boolean posSW7 = LOW; // bit position switch = off = HIGH
-boolean offSW7 = LOW; // bit position switch surch for off again
 boolean gate7O = LOW; // bit gate 7 open = HIGH
 boolean gate7C = LOW; // bit gate 7 close = HIGH
+boolean dustC7 = LOW; // bit dust Collector for machine 7 = HIGH
+boolean logIM7 = LOW; // bit log in for machine 7 = HIGH
+boolean logOM7 = LOW; // bit log in for machine 7 = HIGH
 
-unsigned long gateSTEPS8 = MICROSTEPS * gateStepsMM * 120; // 120 mm
-unsigned long StepCounter8 = 0;
-unsigned long StepSpeed8 = 0;
 boolean noGAT8 = LOW; // bit no gate 8
-boolean bitAL8 = LOW; // bit ACCEL with step up & down = HIGH
-boolean posRY8 = LOW; // bit position ready = HIGH
-boolean posSW8 = LOW; // bit position switch = off = HIGH
-boolean offSW8 = LOW; // bit position switch surch for off again
 boolean gate8O = LOW; // bit gate 8 open = HIGH
 boolean gate8C = LOW; // bit gate 8 close = HIGH
+boolean dustC8 = LOW; // bit dust Collector for machine 8 = HIGH
+boolean logIM8 = LOW; // bit log in machine 8 = HIGH
+boolean logOM8 = LOW; // bit log out machine 8 = HIGH
+
+boolean noGAT9 = LOW; // bit no gate 9
+boolean gate9O = LOW; // bit gate 9 open = HIGH
+boolean gate9C = LOW; // bit gate 9 close = HIGH
+boolean dustC9 = LOW; // bit dust Collector for machine 9 = HIGH
+boolean logIM9 = LOW; // bit log in machine 9 = HIGH
+boolean logOM9 = LOW; // bit log out machine 9 = HIGH
+
+//boolean noGATH = LOW; // bit no gate Hand
+boolean gateHO = LOW; // bit gate By hand open = HIGH
+boolean gateHC = LOW; // bit gate By hand close = HIGH
 
 byte stepSP = 0;  // steps for start position
+
+unsigned int dustCount = 0; // counter how long dust collektor must be switch off
 
 // Serial with xBee
 String inStr = "";  // a string to hold incoming data
@@ -166,45 +161,56 @@ void setup() {
 
   // PIN MODES
   // Stepper -----------
-  pinMode(STEP_S6, OUTPUT);
-  pinMode(STEP_S7, OUTPUT);
-  pinMode(STEP_S8, OUTPUT);
+  pinMode(STEPS_G6, OUTPUT);
+  pinMode(STEPS_G7, OUTPUT);
+  pinMode(STEPS_G8, OUTPUT);
+  pinMode(STEPS_G9, OUTPUT);
 
-  pinMode(DIR_S6, OUTPUT);
-  pinMode(DIR_S7, OUTPUT);
-  pinMode(DIR_S8, OUTPUT);
+  pinMode(DIR_G6, OUTPUT);
+  pinMode(DIR_G7, OUTPUT);
+  pinMode(DIR_G8, OUTPUT);
+  pinMode(DIR_G9, OUTPUT);
 
-  pinMode(stepperENA, OUTPUT);
+  pinMode(enaStGate, OUTPUT);
 
-  pinMode(STOP_S6, INPUT_PULLUP);
-  pinMode(STOP_S7, INPUT_PULLUP);
-  pinMode(STOP_S8, INPUT_PULLUP);
+  pinMode(EndPoG6C, INPUT);
+  pinMode(EndPoG6O, INPUT);
+  pinMode(EndPoG7C, INPUT);
+  pinMode(EndPoG7O, INPUT);
 
-  pinMode(tastG6, INPUT_PULLUP);
-  pinMode(tastG7, INPUT_PULLUP);
-  pinMode(tastG8, INPUT_PULLUP);
+  //pinMode(EndPoG8C, analogRead(uint8_t);  // Input?
+  //pinMode(EndPoG8O, analogRead(uint8_t);  // Input?
 
+  pinMode(EndPoG9C, INPUT);
+  pinMode(EndPoG9O, INPUT);
+
+  pinMode(EndPoGHC, INPUT);
+  pinMode(EndPoGHO, INPUT);
+
+  pinMode(SSR_Vac, OUTPUT);
+
+  pinMode(SIGError, OUTPUT);
   pinMode(BUSError, OUTPUT);
   pinMode(xbeError, OUTPUT);
 
   // Set default values
-  digitalWrite(BUSError, HIGH);   // turn the LED ON (init start)
-  digitalWrite(xbeError, HIGH);   // turn the LED ON (Pin 13)
-  digitalWrite(stepperENA, HIGH); // turn the LED ON (Pin 13)
+  digitalWrite(SSR_Vac, LOW);   // turn off SSR_VAC
+  digitalWrite(SIGError, HIGH);  // turn Error SIGnal off
+
+  digitalWrite(BUSError, HIGH); // turn the LED ON (init start)
+  digitalWrite(xbeError, HIGH); // turn the LED ON (Pin 13)
+
+  digitalWrite(STEPS_G7, LOW);   // turn off SSR_VAC
+  // digitalWrite(EndPoG8C, LOW);   // turn off SSR_VAC
+  // digitalWrite(EndPoG8O, LOW);   // turn off SSR_VAC
 
   runner.init();
   runner.addTask(tC);
   runner.addTask(tB);
-  runner.addTask(tTA);
-  runner.addTask(tDC);
-  runner.addTask(tSP);
-
-  runner.addTask(tS6);
-  runner.addTask(tC6);
-  runner.addTask(tS7);
-  runner.addTask(tC7);
-  runner.addTask(tS8);
-  runner.addTask(tC8);
+  runner.addTask(tGC);
+  runner.addTask(tGS);
+  runner.addTask(tGD);
+  runner.addTask(tGL);
 
   Serial.print("+++"); //Starting the request of IDENT
   tC.enable();
@@ -231,453 +237,197 @@ void retryPOR() {
     tB.disable();
     tC.disable();
 
+    // Set value for first read
+    gate6O = HIGH;
+    gate6C = LOW;
+    gate7O = HIGH;
+    gate7C = LOW;
+    gate8O = HIGH;
+    gate8C = LOW;
+    gate9O = HIGH;
+    gate9C = LOW;
+    gateHO = HIGH;
+    gateHC = LOW;
+
+    dustC6 = LOW;
+    dustC7 = LOW;
+    dustC8 = LOW;
+    dustC9 = LOW;
+
+    logIM6 = LOW;
+    logIM7 = LOW;
+    logIM8 = LOW;
+    logIM9 = LOW;
+
     stepSP = 0;
-    tSP.enable();
+    tGC.enable();
+    tGS.enable();
   }
 }
 
-void startPOSI() {
-  switch (stepSP) {
-    case 0:   // set level values to min
-      bitAL6 = LOW;
-      gatesCLOSE6();
-      stepSP = 1;
-      break;
-    case 1:
-      if (noGAT6 || gate6C ) stepSP = 2;
-      break;
-    case 2:
-      bitAL7 = LOW;
-      gatesCLOSE7();
-      stepSP = 3;
-      break;
-    case 3:
-      if (noGAT7 || gate7C ) stepSP = 4;
-      break;
-    case 4:
-      bitAL8 = LOW;
-      gatesCLOSE8();
-      stepSP = 5;
-      break;
-    case 5:
-      if (noGAT8 || gate8C ) {
-        tTA.enable();
-        tSP.disable();
-        stepSP = 6;
-      }
-      break;
-  }
-}
-
-void tastCheck() {
-  if (!digitalRead(tastG6) || !digitalRead(tastG7) || !digitalRead(tastG8)) {
-    tTA.disable();
-    tDC.enable();
-    tDC.restartDelayed(50);
-  }
-}
-
-void debounceCheckLOW() {
-  if (!digitalRead(tastG6) && digitalRead(tastG7) && digitalRead(tastG8) && !noGAT6) {
-    if (gate6O) {
-      bitAL6 = HIGH;
-      gatesCLOSE6();
-    } else {
-      gatesOPEN6();
-    }
-    tDC.setCallback(&debounceCheckHIGH);
-    tDC.restartDelayed(TASK_SECOND *2);
-  }
-  if (digitalRead(tastG6) && !digitalRead(tastG7) && digitalRead(tastG8) && !noGAT7) {
-    if (gate7O) {
-      bitAL7 = HIGH;
-      gatesCLOSE7();
-    } else {
-      gatesOPEN7();
-    }
-    tDC.setCallback(&debounceCheckHIGH);
-    tDC.restartDelayed(TASK_SECOND *2);
-  }
-  if (digitalRead(tastG8) && digitalRead(tastG7) && !digitalRead(tastG8) && !noGAT8) {
-    if (gate8O) {
-      bitAL8 = HIGH;
-      gatesCLOSE8();
-    } else {
-      gatesOPEN8();
-    }
-    tDC.setCallback(&debounceCheckHIGH);
-    tDC.restartDelayed(TASK_SECOND *2);
-  }
-}
-
-void debounceCheckHIGH() {
-  if (digitalRead(tastG6) && digitalRead(tastG7) && digitalRead(tastG8)) {
-    tTA.enable();
-    tDC.disable();
-    tDC.setCallback(&debounceCheckLOW);
-  }
-}
-
-// Tasks for GATE6: ------------------------
-void motorStepA6() {
-  posSW6 = digitalRead(STOP_S6);
-  if (StepCounter6 >= gateSTEPS6 - MOTOR_ACCEL) {
-    if (bitAL6 && StepCounter6 % (MICROSTEPS)) {
-      --StepSpeed6;
-      tS6.setInterval(StepSpeed6);
-    }
-    --StepCounter6;
-    digitalWrite(STEP_S6, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S6, LOW);
-  } else {
-    tS6.setCallback(&motorStepL6);
-  }
-}
-
-void motorStepL6() {
-  posSW6 = digitalRead(STOP_S6);
-  if (StepCounter6 > MOTOR_DECEL) {
-    --StepCounter6;
-    digitalWrite(STEP_S6, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S6, LOW);
-  } else {
-    tS6.setCallback(&motorStepD6);
-  }
-}
-
-void motorStepD6() {
-  posSW6 = digitalRead(STOP_S6);
-  if (StepCounter6 >  0) {
-    if (bitAL6 && StepCounter6 % (MICROSTEPS)) {
-      ++StepSpeed6;
-      tS6.setInterval(StepSpeed6);
-    }
-    --StepCounter6;
-    digitalWrite(STEP_S6, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S6, LOW);
-  } else {
-    tS6.disable();
-    tS6.setCallback(&motorStepA6);
-    bitAL6 = LOW;
-    posRY6 = HIGH; // ready position
-    digitalWrite(stepperENA, HIGH);
-  }
-}
-
-void gatePosCheck6() {  // drive gate and check witch position is reached
-  if (posRY6 && offSW6 && posSW6) {
-    tS6.disable();
-    tC6.disable();
-    digitalWrite(stepperENA, HIGH);
-    noGAT6 = HIGH;
-    Serial.println("NG6");
-  } else if ((posRY6 || offSW6) && !posSW6) {
-    tS6.disable();
-    tC6.disable();
-    digitalWrite(stepperENA, HIGH);
-    if (posRY6 && !offSW6 && !posSW6) {
+// Task Gates popsition: -------------------
+void gateChange() {
+  if (digitalRead(EndPoG6O) != gate6O || digitalRead(EndPoG6C) != gate6C) {
+    gate6O = digitalRead(EndPoG6O);
+    gate6C = digitalRead(EndPoG6C);
+    if (gate6O == HIGH && gate6C == LOW) {
       Serial.println("G6O");
-      gate6O = HIGH;
-    }
-    if (!posRY6 && offSW6 && !posSW6) {
+    } else if (gate6O == LOW && gate6C == HIGH) {
       Serial.println("G6C");
-      gate6C = HIGH;
+    } else {
+      Serial.println("G6X");
     }
-  } else if (posSW6 && !offSW6) {
-    offSW6 = HIGH;
-    tC6.setCallback(&gate2SWoff6);
   }
-}
-
-void gate2SWoff6() {    // drive gate to switch off endposition detection
-  gateSTEPS6 = MICROSTEPS * gateStepsMM * 10;
-  StepCounter6 = gateSTEPS6;
-  StepSpeed6 = minSPEED * 2;
-  bitAL6 = LOW;
-  posRY6 = LOW;
-  digitalWrite(DIR_S6, gateOPEN);
-  tS6.setCallback(&motorStepA6);
-  tS6.enable();   // !start steps
-  tC6.setCallback(&gatePosCheck6);
-  tC6.enable();   // !start steps
-}
-
-// Tasks for GATE7: ------------------------
-void motorStepA7() {
-  posSW7 = digitalRead(STOP_S7);
-  if (StepCounter7 >= gateSTEPS7 - MOTOR_ACCEL) {
-    if (bitAL7 && StepCounter7 % (MICROSTEPS)) {
-      --StepSpeed7;
-      tS7.setInterval(StepSpeed7);
-    }
-    --StepCounter7;
-    digitalWrite(STEP_S7, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S7, LOW);
-  } else {
-    tS7.setCallback(&motorStepL7);
-  }
-}
-
-void motorStepL7() {
-  posSW7 = digitalRead(STOP_S7);
-  if (StepCounter7 > MOTOR_DECEL) {
-    --StepCounter7;
-    digitalWrite(STEP_S7, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S7, LOW);
-  } else {
-    tS7.setCallback(&motorStepD7);
-  }
-}
-
-void motorStepD7() {
-  posSW7 = digitalRead(STOP_S7);
-  if (StepCounter7 >  0) {
-    if (bitAL7 && StepCounter7 % (MICROSTEPS)) {
-      ++StepSpeed7;
-      tS7.setInterval(StepSpeed7);
-    }
-    --StepCounter7;
-    digitalWrite(STEP_S7, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S7, LOW);
-  } else {
-    tS7.disable();
-    tS7.setCallback(&motorStepA7);
-    bitAL7 = LOW;
-    posRY7 = HIGH; // ready position
-    digitalWrite(stepperENA, HIGH);
-  }
-}
-
-void gatePosCheck7() {  // drive gate and check witch position is reached
-  if (posRY7 && offSW7 && posSW7) {
-    noGAT7 = HIGH;
-    tS7.disable();
-    tC7.disable();
-    digitalWrite(stepperENA, HIGH);
-    Serial.println("NG7");
-  } else if ((posRY7 || offSW7) && !posSW7) {
-    tS7.disable();
-    tC7.disable();
-    digitalWrite(stepperENA, HIGH);
-    if (posRY7 && !posSW7 && !offSW7) {
+  if (digitalRead(EndPoG7O) != gate7O || digitalRead(EndPoG7C) != gate7C) {
+    gate7O = digitalRead(EndPoG7O);
+    gate7C = digitalRead(EndPoG7C);
+    if (gate7O == HIGH && gate7C == LOW) {
       Serial.println("G7O");
-      gate7O = HIGH;
-    }
-    if (!posRY7 && !posSW7 && offSW7) {
+    } else if (gate7O == LOW && gate7C == HIGH) {
       Serial.println("G7C");
-      gate7C = HIGH;
+    } else {
+      Serial.println("G7X");
     }
-  } else if (posSW7 && !offSW7) { //!posRY &&
-    offSW7 = HIGH;
-    tC6.setCallback(&gate2SWoff7);
   }
-}
-
-void gate2SWoff7() {    // drive gate to switch off endposition detection
-  gateSTEPS7 = MICROSTEPS * gateStepsMM * 10;
-  StepCounter7 = gateSTEPS7;
-  StepSpeed7 = minSPEED * 2;
-  bitAL7 = LOW;
-  posRY7 = LOW;
-  digitalWrite(DIR_S7, gateOPEN);
-  tS7.setCallback(&motorStepA7);
-  tS7.enable();   // !start steps
-  tC7.setCallback(&gatePosCheck7);
-  tC7.enable();   // !start steps
-}
-
-// Tasks for GATE8: ------------------------
-void motorStepA8() {
-  posSW8 = digitalRead(STOP_S8);
-  if (StepCounter8 >= gateSTEPS8 - MOTOR_ACCEL) {
-    if (bitAL8 && StepCounter8 % (MICROSTEPS)) {
-      --StepSpeed8;
-      tS8.setInterval(StepSpeed8);
-    }
-    --StepCounter8;
-    digitalWrite(STEP_S8, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S8, LOW);
-  } else {
-    tS8.setCallback(&motorStepL8);
-  }
-}
-
-void motorStepL8() {
-  posSW8 = digitalRead(STOP_S8);
-  if (StepCounter8 > MOTOR_DECEL) {
-    --StepCounter8;
-    digitalWrite(STEP_S8, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S8, LOW);
-  } else {
-    tS8.setCallback(&motorStepD8);
-  }
-}
-
-void motorStepD8() {
-  posSW8 = digitalRead(STOP_S8);
-  if (StepCounter8 >  0) {
-    if (bitAL8 && StepCounter8 % (MICROSTEPS)) {
-      ++StepSpeed8;
-      tS8.setInterval(StepSpeed8);
-    }
-    --StepCounter8;
-    digitalWrite(STEP_S8, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(STEP_S8, LOW);
-  } else {
-    tS8.disable();
-    tS8.setCallback(&motorStepA8);
-    bitAL8 = LOW;
-    posRY8 = HIGH; // ready position
-    digitalWrite(stepperENA, HIGH);
-  }
-}
-
-void gatePosCheck8() {  // drive gate and check witch position is reached
-  // Serial.println("posRY8:" + String(posRY8) + " posSW8:" + String(posSW8) + " offSW8:" + String(offSW8));
-  if (posRY8 && offSW8 && posSW8) {
-    noGAT8 = HIGH;
-    tS8.disable();
-    tC8.disable();
-    digitalWrite(stepperENA, HIGH);
-    Serial.println("NG8");
-  } else if ((posRY8 || offSW8) && !posSW8) {
-    tS8.disable();
-    tC8.disable();
-    digitalWrite(stepperENA, HIGH);
-    if (posRY8 && !posSW8 && !offSW8) {
+  if (readDigital(EndPoG8O) != gate8O || readDigital(EndPoG8C) != gate8C) {
+    gate8O = readDigital(EndPoG8O);
+    gate8C = readDigital(EndPoG8C);
+    if (gate8O == HIGH && gate8C == LOW) {
       Serial.println("G8O");
-      gate8O = HIGH;
-    }
-    if (!posRY8 && !posSW8 && offSW8) {
+    } else if (gate8O == LOW && gate8C == HIGH) {
       Serial.println("G8C");
-      gate8C = HIGH;
+    } else {
+      Serial.println("G8X");
     }
-  } else if (posSW8 && !offSW8) {
-    offSW8 = HIGH;
-    tC8.setCallback(&gate2SWoff8);
+  }
+  if (digitalRead(EndPoG9O) != gate9O || digitalRead(EndPoG9C) != gate9C) {
+    gate9O = digitalRead(EndPoG9O);
+    gate9C = digitalRead(EndPoG9C);
+    if (gate9O == HIGH && gate9C == LOW) {
+      Serial.println("G9O");
+    } else if (gate9O == LOW && gate9C == HIGH) {
+      Serial.println("G9C");
+    } else {
+      Serial.println("G9X");
+    }
+  }
+  if (digitalRead(EndPoGHO) != gateHO || digitalRead(EndPoGHC) != gateHC) {
+    gateHO = digitalRead(EndPoGHO);
+    gateHC = digitalRead(EndPoGHC);
+    if (gateHO == HIGH && gateHC == LOW) {
+      Serial.println("GHO");
+    } else if (gateHO == LOW && gateHC == HIGH) {
+      Serial.println("GHC");
+    } else {
+      Serial.println("GHX");
+    }
   }
 }
 
-void gate2SWoff8() {    // drive gate to switch off endposition detection
-  gateSTEPS8 = MICROSTEPS * gateStepsMM * 10;
-  StepCounter8 = gateSTEPS8;
-  StepSpeed8 = minSPEED * 2;
-  bitAL8 = LOW;
-  posRY8 = LOW;
-  digitalWrite(DIR_S8, gateOPEN);
-  tS8.setCallback(&motorStepA8);
-  tS8.enable();   // !start steps
-  tC8.setCallback(&gatePosCheck8);
-  tC8.enable();   // !start steps
+// Task Gate start: ------------------------
+void gateStart() {
+  if (gate6O || gate7O || gate8O || gate9O || gateHO) {
+    digitalWrite(SIGError, LOW);
+    if (gate6O) Serial.println("G6O");
+    if (gate7O) Serial.println("G7O");
+    if (gate8O) Serial.println("G8O");
+    if (gate9O) Serial.println("G9O");
+    if (gateHO) Serial.println("GHO");
+    delay(125);
+    digitalWrite(SIGError, HIGH);
+  } else if (gate6C && gate7C && gate8C && gate9C && gateHC) {
+    digitalWrite(SIGError, LOW);
+    Serial.println("GOK");  // gates ok, all in position
+    tGS.disable();
+    tGD.enable();
+    tGL.enable();
+  } else {
+    digitalWrite(SIGError, LOW);
+    if (!gate6C) Serial.println("G6X");
+    if (!gate7C) Serial.println("G7X");
+    if (!gate8C) Serial.println("G8X");
+    if (!gate9C) Serial.println("G9X");
+    if (!gateHC) Serial.println("GHX");
+    delay(500);
+    digitalWrite(SIGError, HIGH);
+  }
+}
+
+// Task Gate Dust on?: ---------------------
+void gateDustco() {
+  if ((gate6O || gate7O || gate8O || gate9O) && gateHC) {
+    // control dust collector over machine 6 - 9
+    if (dustC6 || dustC7 || dustC8 || dustC9) {
+      digitalWrite(SSR_Vac, HIGH);
+    } else if (!dustC6 && !dustC7 && !dustC8 && !dustC9) {
+      digitalWrite(SSR_Vac, LOW);
+    }
+    dustCount = 0;
+  } else if (gate6C && gate7C && gate8C && gate9C && gateHO && !gateHC) { //&& (dustCount > intervalCLMn)
+    digitalWrite(SSR_Vac, HIGH);
+    dustCount = 0;
+  } else if (gate6C && gate7C && gate8C && gate9C && (!gateHO || gateHC)) {
+    digitalWrite(SSR_Vac, LOW);
+    ++dustCount;
+  } else {
+    dustC6 = LOW;
+    dustC7 = LOW;
+    dustC8 = LOW;
+    dustC9 = LOW;
+    digitalWrite(SSR_Vac, LOW);
+    // error blink
+    // check error nr and send message
+    // after wait time
+  }
+}
+
+// Task Gate Dust on?: ---------------------
+void gateLogin() {
+  if (!gate6O && logIM6 && !logOM6) {
+    Serial.println("ERR:G6O");
+  } else if (!gate6C && logIM6 && logOM6) {
+    Serial.println("ERR:G6C");
+  } else if (gate6C && logIM6 && logOM6) {
+    logIM6 = LOW;
+    logOM6 = LOW;
+  }
+  if (!gate7O && logIM7 && !logOM7) {
+    Serial.println("ERR:G7O");
+  } else if (!gate7C && logIM7 && logOM7) {
+    Serial.println("ERR:G7C");
+  } else if (gate7C && logIM7 && logOM7) {
+    logIM7 = LOW;
+    logOM7 = LOW;
+  }
+  if (!gate8O && logIM8 && !logOM8) {
+    Serial.println("ERR:G8O");
+  } else if (!gate8C && logIM8 && logOM8) {
+    Serial.println("ERR:G8C");
+  } else if (gate8C && logIM8 && logOM8) {
+    logIM8 = LOW;
+    logOM8 = LOW;
+  }
+  if (!gate9O && logIM9 && !logOM9) {
+    Serial.println("ERR:G9O");
+  } else if (!gate9C && logIM9 && logOM9) {
+    Serial.println("ERR:G9C");
+  } else if (gate9C && logIM9 && logOM9) {
+    logIM9 = LOW;
+    logOM9 = LOW;
+  }
 }
 // END OF TASKS ---------------------------------
 
 // FUNCTIONS ------------------------------------
-// Function GATE6 -------------------------------
-void gatesOPEN6() {
-  gateSTEPS6 = MICROSTEPS * gateStepsMM * 120;	// open gate 120 mm
-  StepCounter6 = gateSTEPS6;
-  StepSpeed6 = minSPEED;
-  bitAL6 = HIGH;
-  posRY6 = LOW;
-  offSW6 = LOW;
-  gate6C = LOW;
-  digitalWrite(DIR_S6, gateOPEN);
-  tS6.setCallback(&motorStepA6);
-  tS6.enable();   // !start steps
-  tC6.setCallback(&gatePosCheck6);
-  tC6.enable();   // !start steps
-  digitalWrite(stepperENA, LOW);
+// Convert analog signal in digital boolean values
+boolean readDigital(int inputPin) {
+  if (analogRead(inputPin) > 512) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
-void gatesCLOSE6() {
-  gateSTEPS6 = MICROSTEPS * gateStepsMM * 125;	// close gate 125 mm
-  StepCounter6 = gateSTEPS6;
-  StepSpeed6 = minSPEED;
-  posRY6 = LOW;
-  offSW6 = LOW;
-  gate6O = LOW;
-  digitalWrite(DIR_S6, !gateOPEN);
-  tS6.setCallback(&motorStepA6);
-  tS6.enable();   // !start steps
-  tC6.setCallback(&gatePosCheck6);
-  tC6.enable();   // !start steps
-  digitalWrite(stepperENA, LOW);
-}
-
-// Function GATE7 -------------------------------
-void gatesOPEN7() {
-  gateSTEPS7 = MICROSTEPS * gateStepsMM * 120;	// open gate 120 mm
-  StepCounter7 = gateSTEPS7;
-  StepSpeed7 = minSPEED;
-  bitAL7 = HIGH;
-  posRY7 = LOW;
-  offSW7 = LOW;
-  gate7C = LOW;
-  digitalWrite(DIR_S7, gateOPEN);
-  tS7.setCallback(&motorStepA7);
-  tS7.enable();   // !start steps
-  tC7.setCallback(&gatePosCheck7);
-  tC7.enable();   // !start steps
-  digitalWrite(stepperENA, LOW);
-}
-
-void gatesCLOSE7() {
-  // Serial.println("posRY7:" + String(posRY7) + " posSW7:" + String(posSW7) + " offSW7:" + String(offSW7));
-  gateSTEPS7 = MICROSTEPS * gateStepsMM * 125;	// close gate 125 mm
-  StepCounter7 = gateSTEPS7;
-  StepSpeed7 = minSPEED;
-  posRY7 = LOW;
-  offSW7 = LOW;
-  gate7O = LOW;
-  digitalWrite(DIR_S7, !gateOPEN);
-  tS7.setCallback(&motorStepA7);
-  tS7.enable();   // !start steps
-  tC7.setCallback(&gatePosCheck7);
-  tC7.enable();   // !start steps
-  digitalWrite(stepperENA, LOW);
-}
-
-// Function GATE8 --------------------------
-void gatesOPEN8() {
-  gateSTEPS8 = MICROSTEPS * gateStepsMM * 120;	// open gate 120 mm
-  StepCounter8 = gateSTEPS8;
-  StepSpeed8 = minSPEED;
-  bitAL8 = HIGH;
-  posRY8 = LOW;
-  offSW8 = LOW;
-  gate8C = LOW;
-  digitalWrite(DIR_S8, gateOPEN);
-  tS8.setCallback(&motorStepA8);
-  tS8.enable();   // !start steps
-  tC8.setCallback(&gatePosCheck8);
-  tC8.enable();   // !start steps
-  digitalWrite(stepperENA, LOW);
-}
-
-void gatesCLOSE8() {
-  gateSTEPS8 = MICROSTEPS * gateStepsMM * 125;	// close gate 125 mm
-  StepCounter8 = gateSTEPS8;
-  StepSpeed8 = minSPEED;
-  posRY8 = LOW;
-  offSW8 = LOW;
-  gate8O = LOW;
-  digitalWrite(DIR_S8, !gateOPEN);
-  tS8.setCallback(&motorStepA8);
-  tS8.enable();   // !start steps
-  tC8.setCallback(&gatePosCheck8);
-  tC8.enable();   // !start steps
-  digitalWrite(stepperENA, LOW);
-}
 // End Funktions --------------------------------
 
 // Funktions Serial Input (Event) ---------------
@@ -702,31 +452,53 @@ void evalSerialData() {
     getTime = 255;
   }
 
-  if (inStr.startsWith("OG6") && !noGAT6 && !gate6O) { // return TIME
-    gatesOPEN6();
+  if (inStr.startsWith("LI6") && !logOM6) logIM6 = HIGH;
+
+  if (inStr.startsWith("LI7") && !logOM7) logIM7 = HIGH;
+
+  if (inStr.startsWith("LI8") && !logOM8) logIM8 = HIGH;
+
+  if (inStr.startsWith("LI9") && !logOM9) logIM9 = HIGH;
+
+  if (inStr.startsWith("LO6") && logIM6) logOM6 = HIGH;
+
+  if (inStr.startsWith("LO7") && logIM7) logOM7 = HIGH;
+
+  if (inStr.startsWith("LO8") && logIM8) logOM8 = HIGH;
+
+  if (inStr.startsWith("LO9") && logIM9
+) logOM9 = HIGH;
+
+  if (inStr.startsWith("DO6") && !noGAT6) {
+    if (gate6O && !gate6C && logIM6 && !logOM6) dustC6 = HIGH;
   }
 
-  if (inStr.startsWith("OG7") && !noGAT7 && !gate7O) { // return TIME
-    gatesOPEN7();
+  if (inStr.startsWith("DO7") && !noGAT7) {
+    if (gate7O && !gate7C && logIM7 && !logOM7) dustC7 = HIGH;
   }
 
-  if (inStr.startsWith("OG8") && !noGAT8 && !gate8O) { // return TIME
-    gatesOPEN8();
+  if (inStr.startsWith("DO8") && !noGAT8) {
+    if (gate8O && !gate8C && logIM8 && !logOM8) dustC8 = HIGH;
   }
 
-  if (inStr.startsWith("CG6") && !noGAT6) { // return TIME
-    bitAL6 = HIGH;
-    gatesCLOSE6();
+  if (inStr.startsWith("DO9") && !noGAT9) {
+    if (gate9O && !gate9C && logIM9 && !logOM9) dustC9 = HIGH;
   }
 
-  if (inStr.startsWith("CG7") && !noGAT7) { // return TIME
-    bitAL7 = HIGH;
-    gatesCLOSE7();
+  if (inStr.startsWith("DF6") && !noGAT6) {
+    if (gate6O && !gate6C && logIM6 && !logOM6) dustC6 = LOW;
   }
 
-  if (inStr.startsWith("CG8") && !noGAT8) { // return TIME
-    bitAL8 = HIGH;
-    gatesCLOSE8();
+  if (inStr.startsWith("DF7") && !noGAT7) {
+    if (gate7O && !gate7C && logIM7 && !logOM7) dustC7 = LOW;
+  }
+
+  if (inStr.startsWith("DF8") && !noGAT8) {
+    if (gate8O && !gate8C && logIM8 && !logOM8) dustC8 = LOW;
+  }
+
+  if (inStr.startsWith("DF9") && !noGAT9) {
+    if (gate9O && !gate9C && logIM9 && !logOM9) dustC9 = LOW;
   }
 }
 
