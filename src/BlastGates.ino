@@ -59,8 +59,8 @@
 #define EndPoG6O A5 // Endpostion Gate 6 open
 #define EndPoG7C 12 // Endpostion Gate 7 close
 #define EndPoG7O A4 // Endpostion Gate 7 open
-#define EndPoG8C A7 // Endpostion Gate 8 close
-#define EndPoG8O A6 // Endpostion Gate 8 open
+#define EndPoG8C A7 // Endpostion Gate 8 close (Only analog input)
+#define EndPoG8O A6 // Endpostion Gate 8 open  (Only analog input)
 #define EndPoG9C A1 // Endpostion Gate 9 close
 #define EndPoG9O A0 // Endpostion Gate 9 open
 #define EndPoGHC  5 // Endpostion Gate by hand close (STEPS_G8)
@@ -178,8 +178,8 @@ void setup() {
   pinMode(EndPoG7C, INPUT);
   pinMode(EndPoG7O, INPUT);
 
-  //pinMode(EndPoG8C, analogRead(uint8_t);  // Input?
-  //pinMode(EndPoG8O, analogRead(uint8_t);  // Input?
+  //pinMode(EndPoG8C, INPUT);  // Only analog input
+  //pinMode(EndPoG8O, INPUT);  // Only analog input
 
   pinMode(EndPoG9C, INPUT);
   pinMode(EndPoG9O, INPUT);
@@ -195,14 +195,20 @@ void setup() {
 
   // Set default values
   digitalWrite(SSR_Vac, LOW);   // turn off SSR_VAC
-  digitalWrite(SIGError, HIGH);  // turn Error SIGnal off
+  digitalWrite(SIGError, LOW);  // turn Error SIGnal off
 
   digitalWrite(BUSError, HIGH); // turn the LED ON (init start)
   digitalWrite(xbeError, HIGH); // turn the LED ON (Pin 13)
 
-  digitalWrite(STEPS_G7, LOW);   // turn off SSR_VAC
-  // digitalWrite(EndPoG8C, LOW);   // turn off SSR_VAC
-  // digitalWrite(EndPoG8O, LOW);   // turn off SSR_VAC
+  digitalWrite(STEPS_G6, LOW);   // turn off SM
+  digitalWrite(STEPS_G7, LOW);   // turn off SM
+  digitalWrite(STEPS_G8, LOW);   // turn off SM
+  digitalWrite(STEPS_G9, LOW);   // turn off SM
+
+  digitalWrite(DIR_G6, LOW);   // turn off SM
+  digitalWrite(DIR_G7, LOW);   // turn off SM
+  digitalWrite(DIR_G8, LOW);   // turn off SM
+  digitalWrite(DIR_G9, LOW);   // turn off SM
 
   runner.init();
   runner.addTask(tC);
