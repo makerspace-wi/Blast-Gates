@@ -30,7 +30,7 @@
   'df_'   - Dust collector oFf for machine
   'ng_'   - No Gate is available
 
-  last change: 01.08.2019 by Michael Muehl
+  last change: 05.08.2019 by Michael Muehl
   changed: add gate control with tasker and xBee communication
 					 for 4 + hand gates controlled manually.
  */
@@ -43,12 +43,12 @@
 // PIN Assignments
 // Steps for the stepper
 #define STEPS_G6 11	// stepper steps Gate 6
-#define STEPS_G7 13 // stepper steps Gate 7
+#define STEPS_G7  3 // stepper steps Gate 7
 #define STEPS_G8  7	// stepper steps Gate 8
 #define STEPS_G9  2	// stepper steps Gate 9
 // Direction of movement
-#define DIR_G6    4	// dir stepper Gate 6
-#define DIR_G7    3	// dir stepper Gate 7
+#define DIR_G6   13	// dir stepper Gate 6
+#define DIR_G7    4	// dir stepper Gate 7
 #define DIR_G8    9	// dir stepper Gate 8
 #define DIR_G9    5	// dir stepper Gate 9
 // enable 2 steppers
@@ -59,12 +59,12 @@
 #define EndPoG6O A5 // Endpostion Gate 6 open
 #define EndPoG7C 12 // Endpostion Gate 7 close
 #define EndPoG7O A4 // Endpostion Gate 7 open
-#define EndPoG8C A7 // Endpostion Gate 8 close (Only analog input)
-#define EndPoG8O A6 // Endpostion Gate 8 open  (Only analog input)
-#define EndPoG9C A1 // Endpostion Gate 9 close
-#define EndPoG9O A0 // Endpostion Gate 9 open
-#define EndPoGHC  5 // Endpostion Gate by hand close (STEPS_G8)
-#define EndPoGHO  2 // Endpostion Gate by hand open  (DIR_G8)
+#define EndPoG8C A1 // Endpostion Gate 8 close
+#define EndPoG8O  5 // Endpostion Gate 8 open (only with endswitch open)
+#define EndPoG9C A0 // Endpostion Gate 9 close
+#define EndPoG9O  2 // Endpostion Gate 9 open (only with endswitch open)
+#define EndPoGHC A7 // Endpostion Gate by hand close (Only analog input)
+#define EndPoGHO A6 // Endpostion Gate by hand open (Only analog input)
 
 #define SSR_Vac  A2 // SSR Dust on / off  (Dust Collector)
 #define SIGError A3 // SIGError for error
@@ -101,13 +101,15 @@ void gateChange();    // Task connect to xBee Server
 
 // TASKS
 Task tC(TASK_SECOND / 2, TASK_FOREVER, &checkXbee);
-Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);   // task for debounce; added M. Muehl
+Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);    // task for debounce; added M. Muehl
 
 // --- Blast Gates ----------
-Task tGC(TASK_SECOND / 4, TASK_FOREVER, &gateChange);  // task for Gate Change position
-Task tGS(TASK_SECOND, TASK_FOREVER, &gateStart);  // task for Gate start
-Task tGD(TASK_SECOND / 2, TASK_FOREVER, &gateDustco);  // task for Gate Dust collector
-Task tGL(TASK_SECOND, TASK_FOREVER, &gateLogin);  // task for Gate Dust collector
+Task tGC(TASK_SECOND / 4, TASK_FOREVER, &gateChange); // task for Gate Change position
+Task tGS(TASK_SECOND, TASK_FOREVER, &gateStart);      // task for Gate start
+Task tER(TASK_SECOND, TASK_FOREVER, &gateERR);        // task for Gate ERRor
+
+Task tGM(1, TASK_ONCE, &gateMA);  // task for Gate machines
+Task tGH(1, TASK_ONCE, &gateHA);  // task for Gate hand
 
 // VARIABLES
 boolean noGAT6 = LOW; // bit no gate 6
@@ -145,6 +147,8 @@ boolean gateHC = LOW; // bit gate By hand close = HIGH
 byte stepSP = 0;  // steps for start position
 
 unsigned int dustCount = 0; // counter how long dust collektor must be switch off
+byte gateCount = 0; // how many gates are opened
+byte errCount = 0;  // how many errors are active
 
 // Serial with xBee
 String inStr = "";  // a string to hold incoming data
@@ -164,25 +168,25 @@ void setup() {
   pinMode(STEPS_G6, OUTPUT);
   pinMode(STEPS_G7, OUTPUT);
   pinMode(STEPS_G8, OUTPUT);
-  pinMode(STEPS_G9, OUTPUT);
+//  pinMode(STEPS_G9, OUTPUT); // not on ES
 
   pinMode(DIR_G6, OUTPUT);
   pinMode(DIR_G7, OUTPUT);
   pinMode(DIR_G8, OUTPUT);
-  pinMode(DIR_G9, OUTPUT);
+//  pinMode(DIR_G9, OUTPUT); // not on ES
 
   pinMode(enaStGate, OUTPUT);
 
   pinMode(EndPoG6C, INPUT);
-  pinMode(EndPoG6O, INPUT);
+  pinMode(EndPoG6O, INPUT); // Switch input ES
   pinMode(EndPoG7C, INPUT);
-  pinMode(EndPoG7O, INPUT);
+  pinMode(EndPoG7O, INPUT); // Switch input ES
 
-  //pinMode(EndPoG8C, INPUT);  // Only analog input
-  //pinMode(EndPoG8O, INPUT);  // Only analog input
+  pinMode(EndPoG8C, INPUT);
+  pinMode(EndPoG8O, INPUT); // Switch input ES
 
   pinMode(EndPoG9C, INPUT);
-  pinMode(EndPoG9O, INPUT);
+  pinMode(EndPoG9O, INPUT); // Switch input ES
 
   pinMode(EndPoGHC, INPUT);
   pinMode(EndPoGHO, INPUT);
@@ -194,29 +198,30 @@ void setup() {
   pinMode(xbeError, OUTPUT);
 
   // Set default values
-  digitalWrite(SSR_Vac, LOW);   // turn off SSR_VAC
+  digitalWrite(SSR_Vac,  LOW);  // turn off SSR_VAC
   digitalWrite(SIGError, LOW);  // turn Error SIGnal off
 
   digitalWrite(BUSError, HIGH); // turn the LED ON (init start)
   digitalWrite(xbeError, HIGH); // turn the LED ON (Pin 13)
 
-  digitalWrite(STEPS_G6, LOW);   // turn off SM
-  digitalWrite(STEPS_G7, LOW);   // turn off SM
-  digitalWrite(STEPS_G8, LOW);   // turn off SM
-  digitalWrite(STEPS_G9, LOW);   // turn off SM
+  digitalWrite(STEPS_G6, LOW);  // turn off SM
+  digitalWrite(STEPS_G7, LOW);  // turn off SM
+  digitalWrite(STEPS_G8, LOW);  // turn off SM
+  digitalWrite(STEPS_G9, LOW);  // not on ES & turn off SM
 
-  digitalWrite(DIR_G6, LOW);   // turn off SM
-  digitalWrite(DIR_G7, LOW);   // turn off SM
-  digitalWrite(DIR_G8, LOW);   // turn off SM
-  digitalWrite(DIR_G9, LOW);   // turn off SM
+  digitalWrite(DIR_G6, LOW);    // turn off SM
+  digitalWrite(DIR_G7, LOW);    // turn off SM
+  digitalWrite(DIR_G8, LOW);    // turn off SM
+  digitalWrite(DIR_G9, LOW);    // not on ES & turn off SM
 
   runner.init();
   runner.addTask(tC);
   runner.addTask(tB);
   runner.addTask(tGC);
   runner.addTask(tGS);
-  runner.addTask(tGD);
-  runner.addTask(tGL);
+  runner.addTask(tER);
+  runner.addTask(tGH);
+  runner.addTask(tGM);
 
   Serial.print("+++"); //Starting the request of IDENT
   tC.enable();
@@ -271,6 +276,31 @@ void retryPOR() {
   }
 }
 
+// Task Gate start: ------------------------
+void gateStart() {
+  if (gate6O || gate7O || gate8O || gate9O || gateHO) {
+    digitalWrite(SIGError, LOW);
+    if (gate6O) Serial.println("G6O");
+    if (gate7O) Serial.println("G7O");
+    if (gate8O) Serial.println("G8O");
+    if (gate9O) Serial.println("G9O");
+    if (gateHO) Serial.println("GHO");
+    digitalWrite(SIGError, HIGH);
+  } else if (gate6C && gate7C && gate8C && gate9C && gateHC) {
+    digitalWrite(SIGError, LOW);
+    Serial.println("GOK");  // gates ok, all in position
+    tGS.disable();
+  } else {
+    digitalWrite(SIGError, LOW);
+    if (!gate6C) Serial.println("G6X");
+    if (!gate7C) Serial.println("G7X");
+    if (!gate8C) Serial.println("G8X");
+    if (!gate9C) Serial.println("G9X");
+    if (!gateHC) Serial.println("GHX");
+    digitalWrite(SIGError, HIGH);
+  }
+}
+
 // Task Gates popsition: -------------------
 void gateChange() {
   if (digitalRead(EndPoG6O) != gate6O || digitalRead(EndPoG6C) != gate6C) {
@@ -299,10 +329,10 @@ void gateChange() {
       digitalWrite(SIGError, HIGH);
     }
   }
-  if (readDigital(EndPoG8O) != gate8O || readDigital(EndPoG8C) != gate8C) {
+  if (digitalRead(EndPoG8O) != gate8O || digitalRead(EndPoG8C) != gate8C) {
     digitalWrite(SIGError, LOW);
-    gate8O = readDigital(EndPoG8O);
-    gate8C = readDigital(EndPoG8C);
+    gate8O = digitalRead(EndPoG8O);
+    gate8C = digitalRead(EndPoG8C);
     if (gate8O == HIGH && gate8C == LOW) {
       Serial.println("G8O");
     } else if (gate8O == LOW && gate8C == HIGH) {
@@ -325,56 +355,60 @@ void gateChange() {
       digitalWrite(SIGError, HIGH);
     }
   }
-  if (digitalRead(EndPoGHO) != gateHO || digitalRead(EndPoGHC) != gateHC) {
-    digitalWrite(SIGError, LOW);
-    gateHO = digitalRead(EndPoGHO);
-    gateHC = digitalRead(EndPoGHC);
+  if (digitalHand(EndPoGHO) != gateHO || digitalHand(EndPoGHC) != gateHC) {
+    tGH.restartDelayed(50);
+    if (errCount > 0) --errCount;
+    gateHO = digitalHand(EndPoGHO);
+    gateHC = digitalHand(EndPoGHC);
     if (gateHO == HIGH && gateHC == LOW) {
       Serial.println("GHO");
     } else if (gateHO == LOW && gateHC == HIGH) {
       Serial.println("GHC");
     } else {
       Serial.println("GHX");
-      digitalWrite(SIGError, HIGH);
+      ++errCount;
     }
   }
-}
-
-// Task Gate start: ------------------------
-void gateStart() {
-  if (gate6O || gate7O || gate8O || gate9O || gateHO) {
-    digitalWrite(SIGError, LOW);
-    if (gate6O) Serial.println("G6O");
-    if (gate7O) Serial.println("G7O");
-    if (gate8O) Serial.println("G8O");
-    if (gate9O) Serial.println("G9O");
-    if (gateHO) Serial.println("GHO");
+  if (dustCount > 0) --dustCount;
+  if (errCount > 0) {
     digitalWrite(SIGError, HIGH);
-  } else if (gate6C && gate7C && gate8C && gate9C && gateHC) {
-    digitalWrite(SIGError, LOW);
-    Serial.println("GOK");  // gates ok, all in position
-    tGS.disable();
-    tGD.enable();
-    tGL.enable();
   } else {
     digitalWrite(SIGError, LOW);
-    if (!gate6C) Serial.println("G6X");
-    if (!gate7C) Serial.println("G7X");
-    if (!gate8C) Serial.println("G8X");
-    if (!gate9C) Serial.println("G9X");
-    if (!gateHC) Serial.println("GHX");
-    digitalWrite(SIGError, HIGH);
   }
 }
 
-// Task Gate Dust on?: ---------------------
-void gateDustco() {
+// Task Gate HAnd: ---------------------
+void gateHA() {
+  if (dustCount > 0 && errCount == 0 && gateHO == HIGH && gateHC == LOW) ++errCount;
+  if (gateCount < 4 && dustCount == 0 && gateHO == HIGH && gateHC == LOW) {
+    dustCount = 30 * 4; // *0,25 sec until next dust on
+    digitalWrite(SSR_Vac, HIGH);
+    ++gateCount;
+  }
+  if (gateCount > 0 && gateHO == LOW && gateHC == HIGH) {
+    --gateCount;
+    if (gateCount == 0) digitalWrite(SSR_Vac, LOW);
+  }
+}
+
+// Task Gate MAchine: ---------------------
+void gateMA() {
+  Serial.print(dustCount);
+  Serial.print("D");
+  Serial.print(gateCount);
+  Serial.println("GateHA");
   if ((gate6O || gate7O || gate8O || gate9O) && gateHC) {
     // control dust collector over machine 6 - 9
     if (dustC6 || dustC7 || dustC8 || dustC9) {
       digitalWrite(SSR_Vac, HIGH);
+      Serial.print("VAC on ");
+      Serial.print(gateHO);
+      Serial.println(gateHC);
     } else if (!dustC6 && !dustC7 && !dustC8 && !dustC9) {
       digitalWrite(SSR_Vac, LOW);
+      Serial.print("VAC off ");
+      Serial.print(gateHO);
+      Serial.println(gateHC);
     }
     dustCount = 0;
   } else if (gate6C && gate7C && gate8C && gate9C && gateHO && !gateHC) { //&& (dustCount > intervalCLMn)
@@ -396,7 +430,7 @@ void gateDustco() {
 }
 
 // Task Gate log in and out: --------------------
-void gateLogin() {
+void gateERR() {
   if (!gate6O && logIM6 && !logOM6) {
     Serial.println("ERR:G6O");
     digitalWrite(SIGError, HIGH);
@@ -442,7 +476,7 @@ void gateLogin() {
 
 // FUNCTIONS ------------------------------------
 // Convert analog signal in digital boolean values
-boolean readDigital(int inputPin) {
+boolean digitalHand(int inputPin) {
   if (analogRead(inputPin) > 512) {
     return 1;
   } else {
@@ -488,8 +522,7 @@ void evalSerialData() {
 
   if (inStr.startsWith("LO8") && logIM8) logOM8 = HIGH;
 
-  if (inStr.startsWith("LO9") && logIM9
-) logOM9 = HIGH;
+  if (inStr.startsWith("LO9") && logIM9) logOM9 = HIGH;
 
   if (inStr.startsWith("DO6") && !noGAT6) {
     if (gate6O && !gate6C && logIM6 && !logOM6) dustC6 = HIGH;
