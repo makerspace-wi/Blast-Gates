@@ -10,19 +10,20 @@
   Commands to Raspi --->
   'BGATE' - from xBee (=Ident)
   'POR'   - machine power on reset (Ident;por)
+
   ---------- (_=6,7,8,9)
-  'g_O'   - Gate is Open
+  'g_o'   - Gate is Open
   'gho'   - Gate By hand is open (Manuell)
   'g_c'   - Gate is Closed
-  'ghc    - gate By hand is closed
+  'ghc'   - gate By hand is closed
   'g_x'   - Gate position not defined: X
   'ghx'   - Gate Hand position not defined: X
   'err'   - Error message is following ('ERR:G7O')
   'gok'   - all blast gates are ok, in write position
-  '_ok'   - gate nr._ is ok
 
   Commands from Raspi <---
   'time'  - format time33.33.33 33:33:33
+
   ---------- (_=6,7,8,9)
   'li_'   - log in for machine
   'lo_'   - log out for machine
@@ -30,12 +31,13 @@
   'df_'   - Dust collector oFf for machine
   'ng_'   - No Gate is available
 
-  last change: 01.08.2019 by Michael Muehl
+  last change: 24.08.2019 by Michael Muehl
   changed: add gate control with tasker and xBee communication
-					 for 4 + hand gates controlled manually.
+  for 4 + hand gates controlled manually.
  */
-#define Version "0.x"
-#define _TASK_MICRO_RES
+#define Version "0.e" // 5 (Test)
+
+//#define _TASK_MICRO_RES // only for SM
 // ---------------------
 #include <Arduino.h>
 #include <TaskScheduler.h>
@@ -43,12 +45,12 @@
 // PIN Assignments
 // Steps for the stepper
 #define STEPS_G6 11	// stepper steps Gate 6
-#define STEPS_G7 13 // stepper steps Gate 7
+#define STEPS_G7  3 // stepper steps Gate 7
 #define STEPS_G8  7	// stepper steps Gate 8
 #define STEPS_G9  2	// stepper steps Gate 9
 // Direction of movement
-#define DIR_G6    4	// dir stepper Gate 6
-#define DIR_G7    3	// dir stepper Gate 7
+#define DIR_G6   13	// dir stepper Gate 6
+#define DIR_G7    4	// dir stepper Gate 7
 #define DIR_G8    9	// dir stepper Gate 8
 #define DIR_G9    5	// dir stepper Gate 9
 // enable 2 steppers
@@ -59,12 +61,12 @@
 #define EndPoG6O A5 // Endpostion Gate 6 open
 #define EndPoG7C 12 // Endpostion Gate 7 close
 #define EndPoG7O A4 // Endpostion Gate 7 open
-#define EndPoG8C A7 // Endpostion Gate 8 close (Only analog input)
-#define EndPoG8O A6 // Endpostion Gate 8 open  (Only analog input)
-#define EndPoG9C A1 // Endpostion Gate 9 close
-#define EndPoG9O A0 // Endpostion Gate 9 open
-#define EndPoGHC  5 // Endpostion Gate by hand close (STEPS_G8)
-#define EndPoGHO  2 // Endpostion Gate by hand open  (DIR_G8)
+#define EndPoG8C A1 // Endpostion Gate 8 close
+#define EndPoG8O  5 // Endpostion Gate 8 open (only with endswitch open)
+#define EndPoG9C A0 // Endpostion Gate 9 close
+#define EndPoG9O  2 // Endpostion Gate 9 open (only with endswitch open)
+#define EndPoGHC A7 // Endpostion Gate by hand close (Only analog input)
+#define EndPoGHO A6 // Endpostion Gate by hand open (Only analog input)
 
 #define SSR_Vac  A2 // SSR Dust on / off  (Dust Collector)
 #define SIGError A3 // SIGError for error
@@ -101,13 +103,15 @@ void gateChange();    // Task connect to xBee Server
 
 // TASKS
 Task tC(TASK_SECOND / 2, TASK_FOREVER, &checkXbee);
-Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);   // task for debounce; added M. Muehl
+Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);    // task for debounce; added M. Muehl
 
 // --- Blast Gates ----------
-Task tGC(TASK_SECOND / 4, TASK_FOREVER, &gateChange);  // task for Gate Change position
-Task tGS(TASK_SECOND, TASK_FOREVER, &gateStart);  // task for Gate start
-Task tGD(TASK_SECOND / 2, TASK_FOREVER, &gateDustco);  // task for Gate Dust collector
-Task tGL(TASK_SECOND, TASK_FOREVER, &gateLogin);  // task for Gate Dust collector
+Task tGS(TASK_SECOND, TASK_FOREVER, &gateStart);      // task for Gate start
+Task tGC(TASK_SECOND / 4, TASK_FOREVER, &gateChange); // task for Gate Change position
+Task tER(TASK_SECOND, TASK_FOREVER, &gateERR);        // task for Gate ERRor
+
+Task tGM(1, TASK_ONCE, &gateMA);  // task for Gate machines
+Task tGH(1, TASK_ONCE, &gateHA);  // task for Gate hand
 
 // VARIABLES
 boolean noGAT6 = LOW; // bit no gate 6
@@ -115,28 +119,24 @@ boolean gate6O = LOW; // bit gate 6 open = HIGH
 boolean gate6C = LOW; // bit gate 6 close = HIGH
 boolean dustC6 = LOW; // bit dust Collector for machine 6 = HIGH
 boolean logIM6 = LOW; // bit log in machine 6 = HIGH
-boolean logOM6 = LOW; // bit log out machine 6 = HIGH
 
 boolean noGAT7 = LOW; // bit no gate 7
 boolean gate7O = LOW; // bit gate 7 open = HIGH
 boolean gate7C = LOW; // bit gate 7 close = HIGH
 boolean dustC7 = LOW; // bit dust Collector for machine 7 = HIGH
 boolean logIM7 = LOW; // bit log in for machine 7 = HIGH
-boolean logOM7 = LOW; // bit log in for machine 7 = HIGH
 
 boolean noGAT8 = LOW; // bit no gate 8
 boolean gate8O = LOW; // bit gate 8 open = HIGH
 boolean gate8C = LOW; // bit gate 8 close = HIGH
 boolean dustC8 = LOW; // bit dust Collector for machine 8 = HIGH
 boolean logIM8 = LOW; // bit log in machine 8 = HIGH
-boolean logOM8 = LOW; // bit log out machine 8 = HIGH
 
 boolean noGAT9 = LOW; // bit no gate 9
 boolean gate9O = LOW; // bit gate 9 open = HIGH
 boolean gate9C = LOW; // bit gate 9 close = HIGH
 boolean dustC9 = LOW; // bit dust Collector for machine 9 = HIGH
 boolean logIM9 = LOW; // bit log in machine 9 = HIGH
-boolean logOM9 = LOW; // bit log out machine 9 = HIGH
 
 //boolean noGATH = LOW; // bit no gate Hand
 boolean gateHO = LOW; // bit gate By hand open = HIGH
@@ -145,6 +145,9 @@ boolean gateHC = LOW; // bit gate By hand close = HIGH
 byte stepSP = 0;  // steps for start position
 
 unsigned int dustCount = 0; // counter how long dust collektor must be switch off
+byte gateCount = 0; // how many gates are opened
+byte errCount = 0;  // how many errors are active
+int gateNR = 0;     // "0" = no gates, 6,7,8,9 with gate
 
 // Serial with xBee
 String inStr = "";  // a string to hold incoming data
@@ -164,25 +167,25 @@ void setup() {
   pinMode(STEPS_G6, OUTPUT);
   pinMode(STEPS_G7, OUTPUT);
   pinMode(STEPS_G8, OUTPUT);
-  pinMode(STEPS_G9, OUTPUT);
+//  pinMode(STEPS_G9, OUTPUT); // not on ES
 
   pinMode(DIR_G6, OUTPUT);
   pinMode(DIR_G7, OUTPUT);
   pinMode(DIR_G8, OUTPUT);
-  pinMode(DIR_G9, OUTPUT);
+//  pinMode(DIR_G9, OUTPUT); // not on ES
 
   pinMode(enaStGate, OUTPUT);
 
   pinMode(EndPoG6C, INPUT);
-  pinMode(EndPoG6O, INPUT);
+  pinMode(EndPoG6O, INPUT); // Switch input ES
   pinMode(EndPoG7C, INPUT);
-  pinMode(EndPoG7O, INPUT);
+  pinMode(EndPoG7O, INPUT); // Switch input ES
 
-  //pinMode(EndPoG8C, INPUT);  // Only analog input
-  //pinMode(EndPoG8O, INPUT);  // Only analog input
+  pinMode(EndPoG8C, INPUT);
+  pinMode(EndPoG8O, INPUT); // Switch input ES
 
   pinMode(EndPoG9C, INPUT);
-  pinMode(EndPoG9O, INPUT);
+  pinMode(EndPoG9O, INPUT); // Switch input ES
 
   pinMode(EndPoGHC, INPUT);
   pinMode(EndPoGHO, INPUT);
@@ -194,29 +197,30 @@ void setup() {
   pinMode(xbeError, OUTPUT);
 
   // Set default values
-  digitalWrite(SSR_Vac, LOW);   // turn off SSR_VAC
+  digitalWrite(SSR_Vac,  LOW);  // turn off SSR_VAC
   digitalWrite(SIGError, LOW);  // turn Error SIGnal off
 
   digitalWrite(BUSError, HIGH); // turn the LED ON (init start)
   digitalWrite(xbeError, HIGH); // turn the LED ON (Pin 13)
 
-  digitalWrite(STEPS_G6, LOW);   // turn off SM
-  digitalWrite(STEPS_G7, LOW);   // turn off SM
-  digitalWrite(STEPS_G8, LOW);   // turn off SM
-  digitalWrite(STEPS_G9, LOW);   // turn off SM
+  digitalWrite(STEPS_G6, LOW);  // turn off SM
+  digitalWrite(STEPS_G7, LOW);  // turn off SM
+  digitalWrite(STEPS_G8, LOW);  // turn off SM
+  digitalWrite(STEPS_G9, LOW);  // not on ES & turn off SM
 
-  digitalWrite(DIR_G6, LOW);   // turn off SM
-  digitalWrite(DIR_G7, LOW);   // turn off SM
-  digitalWrite(DIR_G8, LOW);   // turn off SM
-  digitalWrite(DIR_G9, LOW);   // turn off SM
+  digitalWrite(DIR_G6, LOW);    // turn off SM
+  digitalWrite(DIR_G7, LOW);    // turn off SM
+  digitalWrite(DIR_G8, LOW);    // turn off SM
+  digitalWrite(DIR_G9, LOW);    // not on ES & turn off SM
 
   runner.init();
   runner.addTask(tC);
   runner.addTask(tB);
   runner.addTask(tGC);
   runner.addTask(tGS);
-  runner.addTask(tGD);
-  runner.addTask(tGL);
+  runner.addTask(tER);
+  runner.addTask(tGH);
+  runner.addTask(tGM);
 
   Serial.print("+++"); //Starting the request of IDENT
   tC.enable();
@@ -266,8 +270,27 @@ void retryPOR() {
     logIM9 = LOW;
 
     stepSP = 0;
-    tGC.enable();
     tGS.enable();
+    tGC.enable();
+  }
+}
+
+// Task Gate start: ------------------------
+void gateStart() {
+  if (!gate6O && gate6C && !gate7O && gate7C && !gate8O && gate8C && !gate9O && gate9C && !gateHO && gateHC) {
+    digitalWrite(SIGError, LOW);
+    errCount = 0;
+    Serial.println("GOK");  // gates ok, all in position
+    tGS.disable();
+    tER.enable();
+  } else {
+    errCount = 4;
+    digitalWrite(SIGError, HIGH);
+    if (!(!gate6O && gate6C)) Serial.println("ERR:G6C");
+    if (!(!gate7O && gate7C)) Serial.println("ERR:G7C");
+    if (!(!gate8O && gate8C)) Serial.println("ERR:G8C");
+    if (!(!gate9O && gate9C)) Serial.println("ERR:G9C");
+    if (!(!gateHO && gateHC)) Serial.println("ERR:GHC");
   }
 }
 
@@ -278,10 +301,12 @@ void gateChange() {
     gate6C = digitalRead(EndPoG6C);
     if (gate6O == HIGH && gate6C == LOW) {
       Serial.println("G6O");
+      if (errCount == gateCount) --errCount;
+      tGM.restartDelayed(50);
     } else if (gate6O == LOW && gate6C == HIGH) {
       Serial.println("G6C");
-    } else {
-      Serial.println("G6X");
+      if (errCount > 0) --errCount;
+      tGM.restartDelayed(50);
     }
   }
   if (digitalRead(EndPoG7O) != gate7O || digitalRead(EndPoG7C) != gate7C) {
@@ -289,21 +314,25 @@ void gateChange() {
     gate7C = digitalRead(EndPoG7C);
     if (gate7O == HIGH && gate7C == LOW) {
       Serial.println("G7O");
+      if (errCount > 0) --errCount;
+      tGM.restartDelayed(50);
     } else if (gate7O == LOW && gate7C == HIGH) {
       Serial.println("G7C");
-    } else {
-      Serial.println("G7X");
+      if (errCount > 0) --errCount;
+      tGM.restartDelayed(50);
     }
   }
-  if (readDigital(EndPoG8O) != gate8O || readDigital(EndPoG8C) != gate8C) {
-    gate8O = readDigital(EndPoG8O);
-    gate8C = readDigital(EndPoG8C);
+  if (digitalRead(EndPoG8O) != gate8O || digitalRead(EndPoG8C) != gate8C) {
+    gate8O = digitalRead(EndPoG8O);
+    gate8C = digitalRead(EndPoG8C);
     if (gate8O == HIGH && gate8C == LOW) {
       Serial.println("G8O");
+      if (errCount > 0) --errCount;
+      tGM.restartDelayed(50);
     } else if (gate8O == LOW && gate8C == HIGH) {
       Serial.println("G8C");
-    } else {
-      Serial.println("G8X");
+      if (errCount > 0) --errCount;
+      tGM.restartDelayed(50);
     }
   }
   if (digitalRead(EndPoG9O) != gate9O || digitalRead(EndPoG9C) != gate9C) {
@@ -311,129 +340,101 @@ void gateChange() {
     gate9C = digitalRead(EndPoG9C);
     if (gate9O == HIGH && gate9C == LOW) {
       Serial.println("G9O");
+      if (errCount > 0) --errCount;
+      tGM.restartDelayed(50);
     } else if (gate9O == LOW && gate9C == HIGH) {
       Serial.println("G9C");
-    } else {
-      Serial.println("G9X");
+      if (errCount > 0) --errCount;
+      tGM.restartDelayed(50);
     }
   }
-  if (digitalRead(EndPoGHO) != gateHO || digitalRead(EndPoGHC) != gateHC) {
-    gateHO = digitalRead(EndPoGHO);
-    gateHC = digitalRead(EndPoGHC);
-    if (gateHO == HIGH && gateHC == LOW) {
+  if (digitalHand(EndPoGHO) != gateHO || digitalHand(EndPoGHC) != gateHC) {
+    gateHO = digitalHand(EndPoGHO);
+    gateHC = digitalHand(EndPoGHC);
+    if (gateCount == 5) {
+      ++errCount;
+    } else if (gateHO == HIGH && gateHC == LOW) {
       Serial.println("GHO");
+      if (errCount > 0) --errCount;
+      tGH.restartDelayed(50);
     } else if (gateHO == LOW && gateHC == HIGH) {
       Serial.println("GHC");
-    } else {
-      Serial.println("GHX");
+      if (errCount > 0) --errCount;
+      tGH.restartDelayed(50);
     }
   }
-}
-
-// Task Gate start: ------------------------
-void gateStart() {
-  if (gate6O || gate7O || gate8O || gate9O || gateHO) {
-    digitalWrite(SIGError, LOW);
-    if (gate6O) Serial.println("G6O");
-    if (gate7O) Serial.println("G7O");
-    if (gate8O) Serial.println("G8O");
-    if (gate9O) Serial.println("G9O");
-    if (gateHO) Serial.println("GHO");
-    delay(125);
+  if (dustCount > 0) --dustCount;
+  if (errCount > 0) {
     digitalWrite(SIGError, HIGH);
-  } else if (gate6C && gate7C && gate8C && gate9C && gateHC) {
-    digitalWrite(SIGError, LOW);
-    Serial.println("GOK");  // gates ok, all in position
-    tGS.disable();
-    tGD.enable();
-    tGL.enable();
   } else {
     digitalWrite(SIGError, LOW);
-    if (!gate6C) Serial.println("G6X");
-    if (!gate7C) Serial.println("G7X");
-    if (!gate8C) Serial.println("G8X");
-    if (!gate9C) Serial.println("G9X");
-    if (!gateHC) Serial.println("GHX");
-    delay(500);
-    digitalWrite(SIGError, HIGH);
   }
 }
 
-// Task Gate Dust on?: ---------------------
-void gateDustco() {
-  if ((gate6O || gate7O || gate8O || gate9O) && gateHC) {
-    // control dust collector over machine 6 - 9
-    if (dustC6 || dustC7 || dustC8 || dustC9) {
-      digitalWrite(SSR_Vac, HIGH);
-    } else if (!dustC6 && !dustC7 && !dustC8 && !dustC9) {
-      digitalWrite(SSR_Vac, LOW);
-    }
-    dustCount = 0;
-  } else if (gate6C && gate7C && gate8C && gate9C && gateHO && !gateHC) { //&& (dustCount > intervalCLMn)
+// Task Gate HAnd: ---------------------
+void gateHA() {
+  if (dustCount > 0 && errCount == 0 && gateHO && !gateHC) {
+    ++errCount;
+  }
+  if (dustCount == 0 && errCount == 0 && gateHO && !gateHC) {
+    if (gateCount == 0) dustCount = 30 * 4; // *0,25 sec until next dust on
+    ++gateCount;
     digitalWrite(SSR_Vac, HIGH);
-    dustCount = 0;
-  } else if (gate6C && gate7C && gate8C && gate9C && (!gateHO || gateHC)) {
-    digitalWrite(SSR_Vac, LOW);
-    ++dustCount;
+  } else if (gateCount > 0 && !gateHO && gateHC) {
+    --gateCount;
+    if (gateCount == 0) digitalWrite(SSR_Vac, LOW);
+  }
+//  Serial.println(IDENT + " HA:GO-GC-Count#gate#ERR:" + String(gateHO) + String(gateHC) + "#" + String(gateCount) + "#" + String(errCount));
+}
+
+// Task Gate MAchine: ---------------------
+void gateMA() {
+  // Serial.println(String(dustCount) + "D:" + String(gateCount) + "G9O:" + String(gate9O));  // Test
+  if (gateCount > 0 && (dustC6 || dustC7 || dustC8 || dustC9)) {
+    digitalWrite(SSR_Vac, HIGH);
   } else {
-    dustC6 = LOW;
-    dustC7 = LOW;
-    dustC8 = LOW;
-    dustC9 = LOW;
     digitalWrite(SSR_Vac, LOW);
-    // error blink
-    // check error nr and send message
-    // after wait time
   }
 }
 
-// Task Gate Dust on?: ---------------------
-void gateLogin() {
-  if (!gate6O && logIM6 && !logOM6) {
+// Task Gate log in and out: --------------------
+void gateERR() {
+  // Serial.println("lIM9:" + String(logIM9) + "lO9:" + "GO9:" + String(gate9O) + "GC9:" + String(gate9C));  // Test
+  if (errCount > 0 && logIM6 && !gate6O) {
     Serial.println("ERR:G6O");
-  } else if (!gate6C && logIM6 && logOM6) {
+  } else if (errCount > 0 && !logIM6 && !gate6C) {
     Serial.println("ERR:G6C");
-  } else if (gate6C && logIM6 && logOM6) {
-    logIM6 = LOW;
-    logOM6 = LOW;
   }
-  if (!gate7O && logIM7 && !logOM7) {
+
+  if (errCount > 0 && logIM7 && !gate7O) {
     Serial.println("ERR:G7O");
-  } else if (!gate7C && logIM7 && logOM7) {
+  } else if (errCount > 0 && !logIM7 && !gate7C) {
     Serial.println("ERR:G7C");
-  } else if (gate7C && logIM7 && logOM7) {
-    logIM7 = LOW;
-    logOM7 = LOW;
   }
-  if (!gate8O && logIM8 && !logOM8) {
+
+  if (errCount > 0 && logIM8 && !gate8O) {
     Serial.println("ERR:G8O");
-  } else if (!gate8C && logIM8 && logOM8) {
+  } else if (errCount > 0 && !logIM8 && !gate8C) {
     Serial.println("ERR:G8C");
-  } else if (gate8C && logIM8 && logOM8) {
-    logIM8 = LOW;
-    logOM8 = LOW;
   }
-  if (!gate9O && logIM9 && !logOM9) {
+
+  if (errCount > 0 && logIM9 && !gate9O) {
     Serial.println("ERR:G9O");
-  } else if (!gate9C && logIM9 && logOM9) {
+  } else if (errCount > 0 && !logIM9 && !gate9C) {
     Serial.println("ERR:G9C");
-  } else if (gate9C && logIM9 && logOM9) {
-    logIM9 = LOW;
-    logOM9 = LOW;
   }
 }
 // END OF TASKS ---------------------------------
 
 // FUNCTIONS ------------------------------------
 // Convert analog signal in digital boolean values
-boolean readDigital(int inputPin) {
+boolean digitalHand(int inputPin) {
   if (analogRead(inputPin) > 512) {
     return 1;
   } else {
     return 0;
   }
 }
-
 // End Funktions --------------------------------
 
 // Funktions Serial Input (Event) ---------------
@@ -458,53 +459,115 @@ void evalSerialData() {
     getTime = 255;
   }
 
-  if (inStr.startsWith("LI6") && !logOM6) logIM6 = HIGH;
-
-  if (inStr.startsWith("LI7") && !logOM7) logIM7 = HIGH;
-
-  if (inStr.startsWith("LI8") && !logOM8) logIM8 = HIGH;
-
-  if (inStr.startsWith("LI9") && !logOM9) logIM9 = HIGH;
-
-  if (inStr.startsWith("LO6") && logIM6) logOM6 = HIGH;
-
-  if (inStr.startsWith("LO7") && logIM7) logOM7 = HIGH;
-
-  if (inStr.startsWith("LO8") && logIM8) logOM8 = HIGH;
-
-  if (inStr.startsWith("LO9") && logIM9
-) logOM9 = HIGH;
-
-  if (inStr.startsWith("DO6") && !noGAT6) {
-    if (gate6O && !gate6C && logIM6 && !logOM6) dustC6 = HIGH;
+  // Blast gate controll
+  if (inStr.startsWith("LI")) {
+    gateNR = inStr.substring(2, 3).toInt();
+    switch (gateNR) {
+      case 6:
+        if (!logIM6) {
+          logIM6 = HIGH;
+          ++gateCount;
+          if (!gate6O) ++errCount;
+        }
+        break;
+      case 7:
+        if (!logIM7) {
+          logIM7 = HIGH;
+          ++gateCount;
+          if (!gate7O) ++errCount;
+        }
+        break;
+      case 8:
+        if (!logIM8) {
+          logIM8 = HIGH;
+          ++gateCount;
+          if (!gate8O) ++errCount;
+        }
+        break;
+      case 9:
+        if (!logIM9) {
+          logIM9 = HIGH;
+          ++gateCount;
+          if (!gate9O) ++errCount;
+        }
+        break;
+    }
+    tGM.restartDelayed(75);
+    // Serial.println("LI:" + String(gateNR) +  + "Li:" + String(logIM9));  // Test
   }
 
-  if (inStr.startsWith("DO7") && !noGAT7) {
-    if (gate7O && !gate7C && logIM7 && !logOM7) dustC7 = HIGH;
+  if (inStr.startsWith("LO")) {
+    gateNR = inStr.substring(2, 3).toInt();
+    switch (gateNR) {
+      case 6:
+        if (logIM6) {
+          logIM6 = LOW;
+          if (gateCount > 0) --gateCount;
+          if (!gate6C) ++errCount;
+        }
+        break;
+      case 7:
+        if (logIM7) {
+          logIM7 = LOW;
+          if (gateCount > 0) --gateCount;
+          if (!gate7C) ++errCount;
+        }
+        break;
+      case 8:
+        if (logIM8) {
+          logIM8 = LOW;
+          if (gateCount > 0) --gateCount;
+          if (!gate8C) ++errCount;
+        }
+        break;
+      case 9:
+        if (logIM9) {
+          logIM9 = LOW;
+          if (gateCount > 0) --gateCount;
+          if (!gate9C) ++errCount;
+        }
+        break;
+    }
+    tGM.restartDelayed(75);
   }
 
-  if (inStr.startsWith("DO8") && !noGAT8) {
-    if (gate8O && !gate8C && logIM8 && !logOM8) dustC8 = HIGH;
+  if (inStr.startsWith("DO")) {
+    gateNR = inStr.substring(2, 3).toInt();
+    switch (gateNR) {
+      case 6:
+        if (gate6O && !gate6C && logIM6) dustC6 = HIGH;
+        break;
+      case 7:
+        if (gate7O && !gate7C && logIM7) dustC7 = HIGH;
+        break;
+      case 8:
+        if (gate8O && !gate8C && logIM8) dustC8 = HIGH;
+        break;
+      case 9:
+        if (gate9O && !gate9C && logIM9) dustC9 = HIGH;
+        // Test
+        break;
+    }
+    tGM.restartDelayed(75);
   }
 
-  if (inStr.startsWith("DO9") && !noGAT9) {
-    if (gate9O && !gate9C && logIM9 && !logOM9) dustC9 = HIGH;
-  }
-
-  if (inStr.startsWith("DF6") && !noGAT6) {
-    if (gate6O && !gate6C && logIM6 && !logOM6) dustC6 = LOW;
-  }
-
-  if (inStr.startsWith("DF7") && !noGAT7) {
-    if (gate7O && !gate7C && logIM7 && !logOM7) dustC7 = LOW;
-  }
-
-  if (inStr.startsWith("DF8") && !noGAT8) {
-    if (gate8O && !gate8C && logIM8 && !logOM8) dustC8 = LOW;
-  }
-
-  if (inStr.startsWith("DF9") && !noGAT9) {
-    if (gate9O && !gate9C && logIM9 && !logOM9) dustC9 = LOW;
+  if (inStr.startsWith("DF")) {
+    gateNR = inStr.substring(2, 3).toInt();
+    switch (gateNR) {
+      case 6:
+        if (gate6O && !gate6C && logIM6) dustC6 = LOW;
+        break;
+      case 7:
+        if (gate7O && !gate7C && logIM7) dustC7 = LOW;
+        break;
+      case 8:
+        if (gate8O && !gate8C && logIM8) dustC8 = LOW;
+          break;
+      case 9:
+        if (gate9O && !gate9C && logIM9) dustC9 = LOW;
+        break;
+    }
+    tGM.restartDelayed(75);
   }
 }
 
