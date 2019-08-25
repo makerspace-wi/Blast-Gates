@@ -31,10 +31,10 @@
   'df_'   - Dust collector oFf for machine
   'ng_'   - No Gate is available
 
-  last change: 24.08.2019 by Michael Muehl
+  last change: 25.08.2019 by Michael Muehl
   changed: add gate control with tasker and xBee communication
   for 4 + hand gates controlled manually.
- */
+*/
 #define Version "0.e" // 5 (Test)
 
 //#define _TASK_MICRO_RES // only for SM
