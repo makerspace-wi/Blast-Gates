@@ -58,9 +58,9 @@
 
 // this pin should connect NOT to Ground when want to stop the motor
 #define EndPoG6C 10 // Endpostion Gate 6 close
-#define EndPoG6O A5 // Endpostion Gate 6 open
+#define EndPoG6O A5 // Endpostion Gate 6 open (only with endswitch open)
 #define EndPoG7C 12 // Endpostion Gate 7 close
-#define EndPoG7O A4 // Endpostion Gate 7 open
+#define EndPoG7O A4 // Endpostion Gate 7 open (only with endswitch open)
 #define EndPoG8C A1 // Endpostion Gate 8 close
 #define EndPoG8O  5 // Endpostion Gate 8 open (only with endswitch open)
 #define EndPoG9C A0 // Endpostion Gate 9 close
