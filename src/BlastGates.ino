@@ -108,7 +108,7 @@ Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);    // task for debounce; adde
 // --- Blast Gates ----------
 Task tGS(TASK_SECOND, TASK_FOREVER, &gateStart);      // task for Gate start
 Task tGC(TASK_SECOND / 4, TASK_FOREVER, &gateChange); // task for Gate Change position
-Task tER(TASK_SECOND, TASK_FOREVER, &gateERR);        // task for Gate ERRor
+Task tER(TASK_SECOND / 4, TASK_FOREVER, &gateERR);    // task for Gate ERRor
 
 Task tGM(1, TASK_ONCE, &gateMA);  // task for Gate machines
 Task tGH(1, TASK_ONCE, &gateHA);  // task for Gate hand
@@ -144,8 +144,8 @@ boolean gateHC = LOW; // bit gate By hand close = HIGH
 
 byte stepSP = 0;  // steps for start position
 
-unsigned int dustCount = 0; // counter how long dust collektor must be switch off
-byte gateCount = 0; // how many gates are opened
+unsigned int dustWaitT = 0; // counter how long dust wait time
+byte dustCount = 0; // how many dust are on
 byte errCount = 0;  // how many errors are active
 int gateNR = 0;     // "0" = no gates, 6,7,8,9 with gate
 
@@ -299,71 +299,95 @@ void gateChange() {
   if (digitalRead(EndPoG6O) != gate6O || digitalRead(EndPoG6C) != gate6C) {
     gate6O = digitalRead(EndPoG6O);
     gate6C = digitalRead(EndPoG6C);
-    if (gate6O == HIGH && gate6C == LOW) {
-      Serial.println("G6O");
-      if (errCount == gateCount) --errCount;
-      tGM.restartDelayed(50);
-    } else if (gate6O == LOW && gate6C == HIGH) {
-      Serial.println("G6C");
-      if (errCount > 0) --errCount;
-      tGM.restartDelayed(50);
+    if (logIM6) {
+      if (gate6O && !gate6C) {
+        Serial.println("G6O");
+        if (errCount > 0) --errCount;
+        tGM.restartDelayed(50);
+      } else if (!gate6O) {
+        ++errcount;
+      }
+    } else {
+      if (!gate6O && gate6C) {
+        Serial.println("G6C");
+        if (errCount > 0) --errCount;
+        tGM.restartDelayed(50);
+      }
     }
   }
   if (digitalRead(EndPoG7O) != gate7O || digitalRead(EndPoG7C) != gate7C) {
     gate7O = digitalRead(EndPoG7O);
     gate7C = digitalRead(EndPoG7C);
-    if (gate7O == HIGH && gate7C == LOW) {
-      Serial.println("G7O");
-      if (errCount > 0) --errCount;
-      tGM.restartDelayed(50);
-    } else if (gate7O == LOW && gate7C == HIGH) {
-      Serial.println("G7C");
-      if (errCount > 0) --errCount;
-      tGM.restartDelayed(50);
+    if (logIM7) {
+      if (gate7O && !gate7C) {
+        Serial.println("G7O");
+        if (errCount > 0) --errCount;
+        tGM.restartDelayed(50);
+      } else if (!gate7O) {
+        ++errcount;
+      }
+    } else {
+      if (!gate7O && gate7C) {
+        Serial.println("G7C");
+        if (errCount > 0) --errCount;
+        tGM.restartDelayed(50);
+      }
     }
   }
   if (digitalRead(EndPoG8O) != gate8O || digitalRead(EndPoG8C) != gate8C) {
     gate8O = digitalRead(EndPoG8O);
     gate8C = digitalRead(EndPoG8C);
-    if (gate8O == HIGH && gate8C == LOW) {
-      Serial.println("G8O");
-      if (errCount > 0) --errCount;
-      tGM.restartDelayed(50);
-    } else if (gate8O == LOW && gate8C == HIGH) {
-      Serial.println("G8C");
-      if (errCount > 0) --errCount;
-      tGM.restartDelayed(50);
+    if (logIM8) {
+      if (gate8O && !gate8C) {
+        Serial.println("G8O");
+        if (errCount > 0) --errCount;
+        tGM.restartDelayed(50);
+      } else if (!gate8O) {
+        ++errcount;
+      }
+    } else {
+      if (!gate8O && gate8C) {
+        Serial.println("G8C");
+        if (errCount > 0) --errCount;
+        tGM.restartDelayed(50);
+      }
     }
   }
   if (digitalRead(EndPoG9O) != gate9O || digitalRead(EndPoG9C) != gate9C) {
     gate9O = digitalRead(EndPoG9O);
     gate9C = digitalRead(EndPoG9C);
-    if (gate9O == HIGH && gate9C == LOW) {
-      Serial.println("G9O");
-      if (errCount > 0) --errCount;
-      tGM.restartDelayed(50);
-    } else if (gate9O == LOW && gate9C == HIGH) {
-      Serial.println("G9C");
-      if (errCount > 0) --errCount;
-      tGM.restartDelayed(50);
+    if (logIM9) {
+      if (gate9O && !gate9C) {
+        Serial.println("G9O");
+        if (errCount > 0) --errCount;
+        tGM.restartDelayed(50);
+      } else if (!gate9O) {
+        ++errcount;
+      }
+    } else {
+      if (!gate9O && gate9C) {
+        Serial.println("G9C");
+        if (errCount > 0) --errCount;
+        tGM.restartDelayed(50);
+      }
     }
   }
   if (digitalHand(EndPoGHO) != gateHO || digitalHand(EndPoGHC) != gateHC) {
     gateHO = digitalHand(EndPoGHO);
     gateHC = digitalHand(EndPoGHC);
-    if (gateCount == 5) {
+    if (dustCount == 4) {
       ++errCount;
-    } else if (gateHO == HIGH && gateHC == LOW) {
+    } else if (gateHO && !gateHC) {
       Serial.println("GHO");
       if (errCount > 0) --errCount;
       tGH.restartDelayed(50);
-    } else if (gateHO == LOW && gateHC == HIGH) {
+    } else if (!gateHO && gateHC) {
       Serial.println("GHC");
       if (errCount > 0) --errCount;
       tGH.restartDelayed(50);
     }
   }
-  if (dustCount > 0) --dustCount;
+  if (dustWaitT > 0) --dustWaitT;
   if (errCount > 0) {
     digitalWrite(SIGError, HIGH);
   } else {
@@ -373,24 +397,22 @@ void gateChange() {
 
 // Task Gate HAnd: ---------------------
 void gateHA() {
-  if (dustCount > 0 && errCount == 0 && gateHO && !gateHC) {
+  if (dustWaitT > 0 && errCount == 0 && gateHO && !gateHC) {
     ++errCount;
   }
-  if (dustCount == 0 && errCount == 0 && gateHO && !gateHC) {
-    if (gateCount == 0) dustCount = 30 * 4; // *0,25 sec until next dust on
-    ++gateCount;
+  if (dustWaitT == 0 && errCount == 0 && gateHO && !gateHC) {
+    dustWaitT = 30 * 4; // *0,25 sec until next dust on
     digitalWrite(SSR_Vac, HIGH);
-  } else if (gateCount > 0 && !gateHO && gateHC) {
-    --gateCount;
-    if (gateCount == 0) digitalWrite(SSR_Vac, LOW);
+  } else if (dustCount == 0 && !gateHO && gateHC) {
+    digitalWrite(SSR_Vac, LOW);
   }
-//  Serial.println(IDENT + " HA:GO-GC-Count#gate#ERR:" + String(gateHO) + String(gateHC) + "#" + String(gateCount) + "#" + String(errCount));
+//  Serial.println(IDENT + " HA:GO-GC-Count#gate#ERR:" + String(gateHO) + String(gateHC) + "#" + String(dustCount) + "#" + String(errCount));
 }
 
 // Task Gate MAchine: ---------------------
 void gateMA() {
-  // Serial.println(String(dustCount) + "D:" + String(gateCount) + "G9O:" + String(gate9O));  // Test
-  if (gateCount > 0 && (dustC6 || dustC7 || dustC8 || dustC9)) {
+  // Serial.println("DustC: " + String(dustCount) + " Hand: " + String(gateHO) + String(gateHC));  // Test
+  if (dustCount > 0 || (gateHO && !gateHC)) {
     digitalWrite(SSR_Vac, HIGH);
   } else {
     digitalWrite(SSR_Vac, LOW);
@@ -466,29 +488,29 @@ void evalSerialData() {
       case 6:
         if (!logIM6) {
           logIM6 = HIGH;
-          ++gateCount;
           if (!gate6O) ++errCount;
+          if (gate6O == HIGH && gate6C == LOW) Serial.println("G6O");
         }
         break;
       case 7:
         if (!logIM7) {
           logIM7 = HIGH;
-          ++gateCount;
           if (!gate7O) ++errCount;
+          if (gate7O == HIGH && gate7C == LOW) Serial.println("G7O");
         }
         break;
       case 8:
         if (!logIM8) {
           logIM8 = HIGH;
-          ++gateCount;
           if (!gate8O) ++errCount;
+          if (gate8O == HIGH && gate8C == LOW) Serial.println("G8O");
         }
         break;
       case 9:
         if (!logIM9) {
           logIM9 = HIGH;
-          ++gateCount;
           if (!gate9O) ++errCount;
+          if (gate9O && !gate9C) Serial.println("G9O");
         }
         break;
     }
@@ -502,28 +524,24 @@ void evalSerialData() {
       case 6:
         if (logIM6) {
           logIM6 = LOW;
-          if (gateCount > 0) --gateCount;
           if (!gate6C) ++errCount;
         }
         break;
       case 7:
         if (logIM7) {
           logIM7 = LOW;
-          if (gateCount > 0) --gateCount;
           if (!gate7C) ++errCount;
         }
         break;
       case 8:
         if (logIM8) {
           logIM8 = LOW;
-          if (gateCount > 0) --gateCount;
           if (!gate8C) ++errCount;
         }
         break;
       case 9:
         if (logIM9) {
           logIM9 = LOW;
-          if (gateCount > 0) --gateCount;
           if (!gate9C) ++errCount;
         }
         break;
@@ -535,17 +553,28 @@ void evalSerialData() {
     gateNR = inStr.substring(2, 3).toInt();
     switch (gateNR) {
       case 6:
-        if (gate6O && !gate6C && logIM6) dustC6 = HIGH;
+        if (gate6O && !gate6C && logIM6) {
+          if (!dustC6) ++dustCount;
+          dustC6 = HIGH;
+        }
         break;
       case 7:
-        if (gate7O && !gate7C && logIM7) dustC7 = HIGH;
+        if (gate7O && !gate7C && logIM7) {
+          if (!dustC7) ++dustCount;
+          dustC7 = HIGH;
+        }
         break;
       case 8:
-        if (gate8O && !gate8C && logIM8) dustC8 = HIGH;
+        if (gate8O && !gate8C && logIM8) {
+          if (!dustC8) ++dustCount;
+          dustC8 = HIGH;
+        }
         break;
       case 9:
-        if (gate9O && !gate9C && logIM9) dustC9 = HIGH;
-        // Test
+        if (gate9O && !gate9C && logIM9) {
+          if (!dustC9) ++dustCount;
+          dustC9 = HIGH;
+        }
         break;
     }
     tGM.restartDelayed(75);
@@ -555,16 +584,28 @@ void evalSerialData() {
     gateNR = inStr.substring(2, 3).toInt();
     switch (gateNR) {
       case 6:
-        if (gate6O && !gate6C && logIM6) dustC6 = LOW;
+        if (gate6O && !gate6C && logIM6) {
+          dustC6 = LOW;
+          if (dustCount > 0) --dustCount;
+        }
         break;
       case 7:
-        if (gate7O && !gate7C && logIM7) dustC7 = LOW;
+        if (gate7O && !gate7C && logIM7) {
+          if (dustCount > 0) --dustCount;
+          dustC7 = LOW;
+        }
         break;
       case 8:
-        if (gate8O && !gate8C && logIM8) dustC8 = LOW;
-          break;
+        if (gate8O && !gate8C && logIM8) {
+          if (dustCount > 0) --dustCount;
+          dustC8 = LOW;
+        }
+        break;
       case 9:
-        if (gate9O && !gate9C && logIM9) dustC9 = LOW;
+        if (gate9O && !gate9C && logIM9) {
+          if (dustCount > 0) --dustCount;
+          dustC9 = LOW;
+        }
         break;
     }
     tGM.restartDelayed(75);
