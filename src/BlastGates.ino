@@ -115,28 +115,28 @@ Task tGH(1, TASK_ONCE, &gateHA);  // task for Gate hand
 
 // VARIABLES
 boolean noGAT6 = LOW; // bit no gate 6
-boolean gate6O = LOW; // bit gate 6 open = HIGH
-boolean gate6C = LOW; // bit gate 6 close = HIGH
 boolean dustC6 = LOW; // bit dust Collector for machine 6 = HIGH
 boolean logIM6 = LOW; // bit log in machine 6 = HIGH
+boolean gate6O = LOW; // bit gate 6 open = HIGH
+boolean gate6C = LOW; // bit gate 6 close = HIGH
 
 boolean noGAT7 = LOW; // bit no gate 7
-boolean gate7O = LOW; // bit gate 7 open = HIGH
-boolean gate7C = LOW; // bit gate 7 close = HIGH
 boolean dustC7 = LOW; // bit dust Collector for machine 7 = HIGH
 boolean logIM7 = LOW; // bit log in for machine 7 = HIGH
+boolean gate7O = LOW; // bit gate 7 open = HIGH
+boolean gate7C = LOW; // bit gate 7 close = HIGH
 
 boolean noGAT8 = LOW; // bit no gate 8
-boolean gate8O = LOW; // bit gate 8 open = HIGH
-boolean gate8C = LOW; // bit gate 8 close = HIGH
 boolean dustC8 = LOW; // bit dust Collector for machine 8 = HIGH
 boolean logIM8 = LOW; // bit log in machine 8 = HIGH
+boolean gate8O = LOW; // bit gate 8 open = HIGH
+boolean gate8C = LOW; // bit gate 8 close = HIGH
 
 boolean noGAT9 = LOW; // bit no gate 9
-boolean gate9O = LOW; // bit gate 9 open = HIGH
-boolean gate9C = LOW; // bit gate 9 close = HIGH
 boolean dustC9 = LOW; // bit dust Collector for machine 9 = HIGH
 boolean logIM9 = LOW; // bit log in machine 9 = HIGH
+boolean gate9O = LOW; // bit gate 9 open = HIGH
+boolean gate9C = LOW; // bit gate 9 close = HIGH
 
 //boolean noGATH = LOW; // bit no gate Hand
 boolean gateHO = LOW; // bit gate By hand open = HIGH
@@ -489,21 +489,21 @@ void evalSerialData() {
         if (!logIM6) {
           logIM6 = HIGH;
           if (!gate6O) ++errCount;
-          if (gate6O == HIGH && gate6C == LOW) Serial.println("G6O");
+          if (gate6O && !gate6C) Serial.println("G6O");
         }
         break;
       case 7:
         if (!logIM7) {
           logIM7 = HIGH;
           if (!gate7O) ++errCount;
-          if (gate7O == HIGH && gate7C == LOW) Serial.println("G7O");
+          if (gate7O && !gate7C) Serial.println("G7O");
         }
         break;
       case 8:
         if (!logIM8) {
           logIM8 = HIGH;
           if (!gate8O) ++errCount;
-          if (gate8O == HIGH && gate8C == LOW) Serial.println("G8O");
+          if (gate8O && !gate8C) Serial.println("G8O");
         }
         break;
       case 9:
