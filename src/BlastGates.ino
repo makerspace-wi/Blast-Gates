@@ -53,7 +53,7 @@
 #define DIR_G7    4	// dir stepper Gate 7
 #define DIR_G8    9	// dir stepper Gate 8
 #define DIR_G9    5	// dir stepper Gate 9
-// enable 2 steppers
+// enable all steppers
 #define enaStGate 6	// enable stepper Gates
 
 // this pin should connect NOT to Ground when want to stop the motor
@@ -180,10 +180,8 @@ void setup() {
   pinMode(EndPoG6O, INPUT); // Switch input ES
   pinMode(EndPoG7C, INPUT);
   pinMode(EndPoG7O, INPUT); // Switch input ES
-
   pinMode(EndPoG8C, INPUT);
   pinMode(EndPoG8O, INPUT); // Switch input ES
-
   pinMode(EndPoG9C, INPUT);
   pinMode(EndPoG9O, INPUT); // Switch input ES
 
@@ -375,11 +373,13 @@ void gateChange() {
   if (digitalHand(EndPoGHO) != gateHO || digitalHand(EndPoGHC) != gateHC) {
     gateHO = digitalHand(EndPoGHO);
     gateHC = digitalHand(EndPoGHC);
-    if (dustCount == 4) {
-      ++errCount;
-    } else if (gateHO && !gateHC) {
+    if (gateHO && !gateHC) {
       Serial.println("GHO");
-      if (errCount > 0) --errCount;
+      if (errCount > 0 && dustCount < 4) {
+        --errCount;
+      } else if (errCount == 0 && dustCount == 4) {
+        ++errCount;
+      }
       tGH.restartDelayed(50);
     } else if (!gateHO && gateHC) {
       Serial.println("GHC");
