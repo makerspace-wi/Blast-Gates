@@ -305,7 +305,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
       } else if (!gate6O) {
-        ++errcount;
+        ++errCount;
       }
     } else {
       if (!gate6O && gate6C) {
@@ -324,7 +324,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
       } else if (!gate7O) {
-        ++errcount;
+        ++errCount;
       }
     } else {
       if (!gate7O && gate7C) {
@@ -343,7 +343,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
       } else if (!gate8O) {
-        ++errcount;
+        ++errCount;
       }
     } else {
       if (!gate8O && gate8C) {
@@ -362,7 +362,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
       } else if (!gate9O) {
-        ++errcount;
+        ++errCount;
       }
     } else {
       if (!gate9O && gate9C) {
@@ -401,7 +401,7 @@ void gateHA() {
     ++errCount;
   }
   if (dustWaitT == 0 && errCount == 0 && gateHO && !gateHC) {
-    dustWaitT = 30 * 4; // *0,25 sec until next dust on
+    if (dustCount == 0) dustWaitT = 30 * 4; // *0,25 sec until next dust on
     digitalWrite(SSR_Vac, HIGH);
   } else if (dustCount == 0 && !gateHO && gateHC) {
     digitalWrite(SSR_Vac, LOW);
