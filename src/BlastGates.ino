@@ -302,7 +302,7 @@ void gateChange() {
         Serial.println("G6O");
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
-      } else if (!gate6O) {
+      } else if (!gate6O && errCount == 0) {
         ++errCount;
       }
     } else {
@@ -321,7 +321,7 @@ void gateChange() {
         Serial.println("G7O");
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
-      } else if (!gate7O) {
+      } else if (!gate7O && errCount == 0) {
         ++errCount;
       }
     } else {
@@ -340,7 +340,7 @@ void gateChange() {
         Serial.println("G8O");
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
-      } else if (!gate8O) {
+      } else if (!gate8O && errCount == 0) {
         ++errCount;
       }
     } else {
@@ -359,7 +359,7 @@ void gateChange() {
         Serial.println("G9O");
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
-      } else if (!gate9O) {
+      } else if (!gate9O && errCount == 0) {
         ++errCount;
       }
     } else {
@@ -411,7 +411,6 @@ void gateHA() {
 
 // Task Gate MAchine: ---------------------
 void gateMA() {
-  // Serial.println("DustC: " + String(dustCount) + " Hand: " + String(gateHO) + String(gateHC));  // Test
   if (dustCount > 0 || (gateHO && !gateHC)) {
     digitalWrite(SSR_Vac, HIGH);
   } else {
@@ -488,28 +487,28 @@ void evalSerialData() {
       case 6:
         if (!logIM6) {
           logIM6 = HIGH;
-          if (!gate6O) ++errCount;
+          if (!gate6O && errCount == 0) ++errCount;
           if (gate6O && !gate6C) Serial.println("G6O");
         }
         break;
       case 7:
         if (!logIM7) {
           logIM7 = HIGH;
-          if (!gate7O) ++errCount;
+          if (!gate7O && errCount == 0) ++errCount;
           if (gate7O && !gate7C) Serial.println("G7O");
         }
         break;
       case 8:
         if (!logIM8) {
           logIM8 = HIGH;
-          if (!gate8O) ++errCount;
+          if (!gate8O && errCount == 0) ++errCount;
           if (gate8O && !gate8C) Serial.println("G8O");
         }
         break;
       case 9:
         if (!logIM9) {
           logIM9 = HIGH;
-          if (!gate9O) ++errCount;
+          if (!gate9O && errCount == 0) ++errCount;
           if (gate9O && !gate9C) Serial.println("G9O");
         }
         break;
@@ -524,25 +523,25 @@ void evalSerialData() {
       case 6:
         if (logIM6) {
           logIM6 = LOW;
-          if (!gate6C) ++errCount;
+          if (!gate6C && errCount == 0) ++errCount;
         }
         break;
       case 7:
         if (logIM7) {
           logIM7 = LOW;
-          if (!gate7C) ++errCount;
+          if (!gate7C && errCount == 0) ++errCount;
         }
         break;
       case 8:
         if (logIM8) {
           logIM8 = LOW;
-          if (!gate8C) ++errCount;
+          if (!gate8C && errCount == 0) ++errCount;
         }
         break;
       case 9:
         if (logIM9) {
           logIM9 = LOW;
-          if (!gate9C) ++errCount;
+          if (!gate9C && errCount == 0) ++errCount;
         }
         break;
     }
