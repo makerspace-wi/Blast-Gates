@@ -35,7 +35,7 @@
   changed: add gate control with tasker and xBee communication
   for 4 + hand gates controlled manually.
 */
-#define Version "1.0" // _ (Test)
+#define Version "1.0" // (Test =1.x ==> 1.1)
 
 //#define _TASK_MICRO_RES // only for SM
 // ---------------------
