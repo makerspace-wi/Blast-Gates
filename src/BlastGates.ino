@@ -44,29 +44,29 @@
 
 // PIN Assignments
 // Steps for the stepper
-#define STEPS_G6 11	// stepper steps Gate 6
+#define STEPS_G6 A6	// stepper steps Gate 6 [not for SM]
 #define STEPS_G7  3 // stepper steps Gate 7
 #define STEPS_G8  7	// stepper steps Gate 8
-#define STEPS_G9  2	// stepper steps Gate 9
+#define STEPS_G9 11	// stepper steps Gate 9
 // Direction of movement
-#define DIR_G6   13	// dir stepper Gate 6
+#define DIR_G6   A7	// dir stepper Gate 6 [not for SM]
 #define DIR_G7    4	// dir stepper Gate 7
 #define DIR_G8    9	// dir stepper Gate 8
-#define DIR_G9    5	// dir stepper Gate 9
+#define DIR_G9   13	// dir stepper Gate 9
 // enable all steppers
 #define enaStGate 6	// enable stepper Gates
 
 // this pin should connect NOT to Ground when want to stop the motor
-#define EndPoG6C 10 // Endpostion Gate 6 close
-#define EndPoG6O A5 // Endpostion Gate 6 open (only with endswitch open)
-#define EndPoG7C 12 // Endpostion Gate 7 close
-#define EndPoG7O A4 // Endpostion Gate 7 open (only with endswitch open)
-#define EndPoG8C A1 // Endpostion Gate 8 close
-#define EndPoG8O  5 // Endpostion Gate 8 open (only with endswitch open)
-#define EndPoG9C A0 // Endpostion Gate 9 close
-#define EndPoG9O  2 // Endpostion Gate 9 open (only with endswitch open)
-#define EndPoGHC A7 // Endpostion Gate by hand close (Only analog input)
-#define EndPoGHO A6 // Endpostion Gate by hand open (Only analog input)
+#define EndPoG6C A1 // Endpostion Gate 6 close
+#define EndPoG6O A0 // Endpostion Gate 6 open (only with endswitch open)
+#define EndPoG7C 10 // Endpostion Gate 7 close
+#define EndPoG7O A5 // Endpostion Gate 7 open (only with endswitch open)
+#define EndPoG8C  5 // Endpostion Gate 8 close
+#define EndPoG8O  2 // Endpostion Gate 8 open (only with endswitch open)
+#define EndPoG9C 12 // Endpostion Gate 9 close
+#define EndPoG9O A4 // Endpostion Gate 9 open (only with endswitch open)
+#define EndPoGHC A6 // Endpostion Gate by hand close (Only analog input)
+#define EndPoGHO A7 // Endpostion Gate by hand open (Only analog input)
 
 #define SSR_Vac  A2 // SSR Dust on / off  (Dust Collector)
 #define SIGError A3 // SIGError for error
