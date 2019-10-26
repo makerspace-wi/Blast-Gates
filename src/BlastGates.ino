@@ -44,27 +44,27 @@
 
 // PIN Assignments
 // Steps for the stepper
-#define STEPS_G6 A6	// stepper steps Gate 6 [not for SM]
-#define STEPS_G7  3 // stepper steps Gate 7
-#define STEPS_G8  7	// stepper steps Gate 8
-#define STEPS_G9 11	// stepper steps Gate 9
+#define STEPS_G6  9	// stepper steps Gate 6 [not for SM]
+#define STEPS_G7 10 // stepper steps Gate 7
+#define STEPS_G8 11	// stepper steps Gate 8
+#define STEPS_G9 A6	// stepper steps Gate 9
 // Direction of movement
-#define DIR_G6   A7	// dir stepper Gate 6 [not for SM]
-#define DIR_G7    4	// dir stepper Gate 7
-#define DIR_G8    9	// dir stepper Gate 8
-#define DIR_G9   13	// dir stepper Gate 9
+#define DIR_G6    7	// dir stepper Gate 6 [not for SM]
+#define DIR_G7   13	// dir stepper Gate 7
+#define DIR_G8   12	// dir stepper Gate 8
+#define DIR_G9   A7	// dir stepper Gate 9
 // enable all steppers
 #define enaStGate 6	// enable stepper Gates
 
 // this pin should connect NOT to Ground when want to stop the motor
-#define EndPoG6C A1 // Endpostion Gate 6 close
-#define EndPoG6O A0 // Endpostion Gate 6 open (only with endswitch open)
-#define EndPoG7C 10 // Endpostion Gate 7 close
+#define EndPoG6C  2 // Endpostion Gate 6 close
+#define EndPoG6O  5 // Endpostion Gate 6 open (only with endswitch open)
+#define EndPoG7C  4 // Endpostion Gate 7 close
 #define EndPoG7O A5 // Endpostion Gate 7 open (only with endswitch open)
-#define EndPoG8C  5 // Endpostion Gate 8 close
-#define EndPoG8O  2 // Endpostion Gate 8 open (only with endswitch open)
-#define EndPoG9C 12 // Endpostion Gate 9 close
-#define EndPoG9O A4 // Endpostion Gate 9 open (only with endswitch open)
+#define EndPoG8C  3 // Endpostion Gate 8 close
+#define EndPoG8O A4 // Endpostion Gate 8 open (only with endswitch open)
+#define EndPoG9C A0 // Endpostion Gate 9 close
+#define EndPoG9O A1 // Endpostion Gate 9 open (only with endswitch open)
 #define EndPoGHC A6 // Endpostion Gate by hand close (Only analog input)
 #define EndPoGHO A7 // Endpostion Gate by hand open (Only analog input)
 
@@ -302,7 +302,7 @@ void gateChange() {
         Serial.println("G6O");
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
-      } else if (!gate6O && errCount == 0) {
+      } else if ((!gate6O || (gate6O && gate6C)) && errCount == 0) {
         ++errCount;
       }
     } else {
@@ -321,7 +321,7 @@ void gateChange() {
         Serial.println("G7O");
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
-      } else if (!gate7O && errCount == 0) {
+      } else if ((!gate7O || (gate7O && gate7C)) && errCount == 0) {
         ++errCount;
       }
     } else {
@@ -340,7 +340,7 @@ void gateChange() {
         Serial.println("G8O");
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
-      } else if (!gate8O && errCount == 0) {
+      } else if ((!gate8O || (gate8O && gate8C)) && errCount == 0) {
         ++errCount;
       }
     } else {
@@ -359,7 +359,7 @@ void gateChange() {
         Serial.println("G9O");
         if (errCount > 0) --errCount;
         tGM.restartDelayed(50);
-      } else if (!gate9O && errCount == 0) {
+      } else if ((!gate9O || (gate9O && gate9C)) && errCount == 0) {
         ++errCount;
       }
     } else {
@@ -375,9 +375,9 @@ void gateChange() {
     gateHC = digitalHand(EndPoGHC);
     if (gateHO && !gateHC) {
       Serial.println("GHO");
-      if (errCount > 0 && dustCount < 4) {
+      if (errCount > 0 && dustCount <= 1) {
         --errCount;
-      } else if (errCount == 0 && dustCount == 4) {
+      } else if (errCount == 0 && dustCount > 1) {
         ++errCount;
       }
       tGH.restartDelayed(50);
@@ -421,25 +421,25 @@ void gateMA() {
 // Task Gate log in and out: --------------------
 void gateERR() {
   // Serial.println("lIM9:" + String(logIM9) + "lO9:" + "GO9:" + String(gate9O) + "GC9:" + String(gate9C));  // Test
-  if (errCount > 0 && logIM6 && !gate6O) {
+  if (errCount > 0 && logIM6 && (!gate6O || (gate6O && gate6C))) {
     Serial.println("ERR:G6O");
   } else if (errCount > 0 && !logIM6 && !gate6C) {
     Serial.println("ERR:G6C");
   }
 
-  if (errCount > 0 && logIM7 && !gate7O) {
+  if (errCount > 0 && logIM7 && (!gate7O || (gate7O && gate7C))) {
     Serial.println("ERR:G7O");
   } else if (errCount > 0 && !logIM7 && !gate7C) {
     Serial.println("ERR:G7C");
   }
 
-  if (errCount > 0 && logIM8 && !gate8O) {
+  if (errCount > 0 && logIM8 && (!gate8O || (gate8O && gate8C))) {
     Serial.println("ERR:G8O");
   } else if (errCount > 0 && !logIM8 && !gate8C) {
     Serial.println("ERR:G8C");
   }
 
-  if (errCount > 0 && logIM9 && !gate9O) {
+  if (errCount > 0 && logIM9 && (!gate9O || (gate9O && gate9C))) {
     Serial.println("ERR:G9O");
   } else if (errCount > 0 && !logIM9 && !gate9C) {
     Serial.println("ERR:G9C");
@@ -552,25 +552,25 @@ void evalSerialData() {
     gateNR = inStr.substring(2, 3).toInt();
     switch (gateNR) {
       case 6:
-        if (gate6O && !gate6C && logIM6) {
+        if (gate6O && !gate6C && logIM6 && !dustC6) {
           if (!dustC6) ++dustCount;
           dustC6 = HIGH;
         }
         break;
       case 7:
-        if (gate7O && !gate7C && logIM7) {
+        if (gate7O && !gate7C && logIM7 && !dustC7) {
           if (!dustC7) ++dustCount;
           dustC7 = HIGH;
         }
         break;
       case 8:
-        if (gate8O && !gate8C && logIM8) {
+        if (gate8O && !gate8C && logIM8 && !dustC8) {
           if (!dustC8) ++dustCount;
           dustC8 = HIGH;
         }
         break;
       case 9:
-        if (gate9O && !gate9C && logIM9) {
+        if (gate9O && !gate9C && logIM9 && !dustC9) {
           if (!dustC9) ++dustCount;
           dustC9 = HIGH;
         }
@@ -583,25 +583,25 @@ void evalSerialData() {
     gateNR = inStr.substring(2, 3).toInt();
     switch (gateNR) {
       case 6:
-        if (gate6O && !gate6C && logIM6) {
+        if (gate6O && !gate6C && logIM6 && dustC6) {
           dustC6 = LOW;
           if (dustCount > 0) --dustCount;
         }
         break;
       case 7:
-        if (gate7O && !gate7C && logIM7) {
+        if (gate7O && !gate7C && logIM7 && dustC7) {
           if (dustCount > 0) --dustCount;
           dustC7 = LOW;
         }
         break;
       case 8:
-        if (gate8O && !gate8C && logIM8) {
+        if (gate8O && !gate8C && logIM8 && dustC8) {
           if (dustCount > 0) --dustCount;
           dustC8 = LOW;
         }
         break;
       case 9:
-        if (gate9O && !gate9C && logIM9) {
+        if (gate9O && !gate9C && logIM9 && dustC9) {
           if (dustCount > 0) --dustCount;
           dustC9 = LOW;
         }
