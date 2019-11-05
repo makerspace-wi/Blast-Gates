@@ -99,7 +99,12 @@ Scheduler runner;
 // Callback methods prototypes
 void checkXbee();     // Task connect to xBee Server
 void retryPOR();      // Task connect to xBee Server
-void gateChange();    // Task connect to xBee Server
+
+void gateStart();     // Task start with closed all
+void gateChange();    // Task check changes
+void gateERR();       // Task for error messages
+void gateMA();        // Task control maschines
+void gateHA();        // Task control hand gate
 
 // TASKS
 Task tC(TASK_SECOND / 2, TASK_FOREVER, &checkXbee);
@@ -108,7 +113,7 @@ Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);    // task for debounce; adde
 // --- Blast Gates ----------
 Task tGS(TASK_SECOND, TASK_FOREVER, &gateStart);      // task for Gate start
 Task tGC(TASK_SECOND / 4, TASK_FOREVER, &gateChange); // task for Gate Change position
-Task tER(TASK_SECOND / 4, TASK_FOREVER, &gateERR);    // task for Gate ERRor
+Task tER(TASK_SECOND, TASK_FOREVER, &gateERR);    		// task for Gate ERRor
 
 Task tGM(1, TASK_ONCE, &gateMA);  // task for Gate machines
 Task tGH(1, TASK_ONCE, &gateHA);  // task for Gate hand
@@ -403,7 +408,7 @@ void gateHA() {
   if (dustWaitT == 0 && errCount == 0 && gateHO && !gateHC) {
     if (dustCount == 0) dustWaitT = 30 * 4; // *0,25 sec until next dust on
     digitalWrite(SSR_Vac, HIGH);
-  } else if (dustCount == 0 && !gateHO && gateHC) {
+  } else if (dustCount == 0 && !gateHO) {
     digitalWrite(SSR_Vac, LOW);
   }
 //  Serial.println(IDENT + " HA:GO-GC-Count#gate#ERR:" + String(gateHO) + String(gateHC) + "#" + String(dustCount) + "#" + String(errCount));
@@ -420,28 +425,28 @@ void gateMA() {
 
 // Task Gate log in and out: --------------------
 void gateERR() {
-  // Serial.println("lIM9:" + String(logIM9) + "lO9:" + "GO9:" + String(gate9O) + "GC9:" + String(gate9C));  // Test
-  if (errCount > 0 && logIM6 && (!gate6O || (gate6O && gate6C))) {
+  // errCount > 0 &&
+  if (logIM6 && (!gate6O || (gate6O && gate6C))) {
     Serial.println("ERR:G6O");
-  } else if (errCount > 0 && !logIM6 && !gate6C) {
+  } else if (!logIM6 && !gate6C) {
     Serial.println("ERR:G6C");
   }
 
-  if (errCount > 0 && logIM7 && (!gate7O || (gate7O && gate7C))) {
+  if (logIM7 && (!gate7O || (gate7O && gate7C))) {
     Serial.println("ERR:G7O");
-  } else if (errCount > 0 && !logIM7 && !gate7C) {
+  } else if (!logIM7 && !gate7C) {
     Serial.println("ERR:G7C");
   }
 
-  if (errCount > 0 && logIM8 && (!gate8O || (gate8O && gate8C))) {
+  if (logIM8 && (!gate8O || (gate8O && gate8C))) {
     Serial.println("ERR:G8O");
-  } else if (errCount > 0 && !logIM8 && !gate8C) {
+  } else if (!logIM8 && !gate8C) {
     Serial.println("ERR:G8C");
   }
 
-  if (errCount > 0 && logIM9 && (!gate9O || (gate9O && gate9C))) {
+  if (logIM9 && (!gate9O || (gate9O && gate9C))) {
     Serial.println("ERR:G9O");
-  } else if (errCount > 0 && !logIM9 && !gate9C) {
+  } else if (!logIM9 && !gate9C) {
     Serial.println("ERR:G9C");
   }
 }
