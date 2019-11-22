@@ -13,6 +13,7 @@
 
   ---------- (_=6,7,8,9)
   'g_o'   - Gate is Open
+  'g_w'   - Gate is waiting for login
   'gho'   - Gate By hand is open (Manuell)
   'g_c'   - Gate is Closed
   'ghc'   - gate By hand is closed
@@ -21,7 +22,8 @@
 
   Commands from Raspi <---
   'time'  - format time33.33.33 33:33:33
-  'setrt'  - set RepeaT messages
+  'setrt' - set RepeaT messages
+  'setwt' - set WaiT for open until login in sec
 
   ---------- (_=6,7,8,9)
   'li_'   - log in for machine
@@ -31,9 +33,9 @@
   'ng_'   - No Gate is available
 
   last change: 20.11.2019 by Michael Muehl
-  changed: changed comunucation blastgate with MA6-9: repeat messages
+  changed: open before login, error after 30sec for gate MA 6-9
 	*/
-#define Version "1.1" // (Test =1.x ==> 1.1)
+#define Version "1.2" // (Test =1.1 ==> 1.2)
 
 //#define _TASK_MICRO_RES // only for SM
 // ---------------------
@@ -89,6 +91,7 @@
 // DEFINES
 #define porTime         5 // wait seconds for sending Ident + POR
 #define repMES          1 // repeat commands
+#define divTime         4 // divider for time
 
 Scheduler runner;
 
@@ -108,11 +111,9 @@ Task tB(TASK_SECOND * 5, TASK_FOREVER, &retryPOR);      // 100ms, task for debou
 Task tR(TASK_SECOND / 2, 0, &repeatMES);                // 500ms * repMES repeat messages
 
 // --- Blast Gates ----------
-Task tGS(TASK_SECOND, TASK_FOREVER, &gateStart);        // task for Gate start
-Task tGC(TASK_SECOND / 4, TASK_FOREVER, &gateChange);   // task for Gate Change position
-
-Task tGM(1, TASK_ONCE, &gateMA);                        // task for Gate machines
-Task tGH(1, TASK_ONCE, &gateHA);                        // task for Gate hand
+Task tGC(TASK_SECOND / divTime, TASK_FOREVER, &gateChange);  // task for Gate Change check
+Task tGM(1, TASK_ONCE, &gateMA);                             // task for Gate machines
+Task tGH(1, TASK_ONCE, &gateHA);                             // task for Gate hand
 
 // VARIABLES
 boolean noGAT6 = LOW; // bit no gate 6
@@ -147,11 +148,16 @@ byte stepSP = 0;      // steps for start position
 byte errCount = 0;      // how many errors are active
 int gateNR = 0;         // "0" = no gates, 6,7,8,9 with gate
 int dustWaitT = 0;      // counter how long dust wait time
+int open4log6 = -1;      // counter how long gate 6 open for login
+int open4log7 = -1;      // counter how long gate 7 open for login
+int open4log8 = -1;      // counter how long gate 8 open for login
+int open4log9 = -1;      // counter how long gate 9 open for login
 
 // Serial with xBee
 String inStr = "";      // a string to hold incoming data
 String IDENT = "";      // Machine identifier for remote access control
-String SFMes = "";      // String send for repeatMES
+String SFMes = "";      // Send For repeatMES
+int waitGO = 0;         // wait for gate open
 byte plplpl = 0;        // send +++ control AT sequenz
 byte getTime = porTime;
 
@@ -196,7 +202,7 @@ void setup() {
 
   // Set default values
   digitalWrite(REL_Vac,  LOW);  // turn off REL_Vac
-  digitalWrite(SIGError, LOW);  // turn Error SIGnal off
+  digitalWrite(SIGError, HIGH); // turn Error SIGnal on
 
   digitalWrite(BUSError, HIGH); // turn the LED ON (init start)
   digitalWrite(xbeError, HIGH); // turn the LED ON (Pin 13)
@@ -216,7 +222,6 @@ void setup() {
   runner.addTask(tB);
   runner.addTask(tR);
   runner.addTask(tGC);
-  runner.addTask(tGS);
   runner.addTask(tGH);
   runner.addTask(tGM);
 
@@ -243,33 +248,9 @@ void retryPOR() {
     tR.setIterations(repMES);
     digitalWrite(BUSError, LOW); // turn the LED off (Programm start)
     tB.disable();
-    tC.disable();
-
-    // Set value for first read
-    gate6O = HIGH;
-    gate6C = LOW;
-    gate7O = HIGH;
-    gate7C = LOW;
-    gate8O = HIGH;
-    gate8C = LOW;
-    gate9O = HIGH;
-    gate9C = LOW;
-    gateHO = HIGH;
-    gateHC = LOW;
-
-    dustC6 = LOW;
-    dustC7 = LOW;
-    dustC8 = LOW;
-    dustC9 = LOW;
-
-    logIM6 = LOW;
-    logIM7 = LOW;
-    logIM8 = LOW;
-    logIM9 = LOW;
-
-    stepSP = 0;
-    tGS.enable();
-    tGC.enable();
+    tC.setCallback(gateStart);
+    tC.restart();
+    waitGO = 30;  // sec
   }
 }
 
@@ -281,15 +262,24 @@ void repeatMES() {
 
 // Task Gate start: ------------------------
 void gateStart() {
+  gate6O = digitalRead(EndPoG6O);
+  gate6C = digitalRead(EndPoG6C);
+  gate7O = digitalRead(EndPoG7O);
+  gate7C = digitalRead(EndPoG7C);
+  gate8O = digitalRead(EndPoG8O);
+  gate8C = digitalRead(EndPoG8C);
+  gate9O = digitalRead(EndPoG9O);
+  gate9C = digitalRead(EndPoG9C);
+  gateHO = digitalHand(EndPoGHO);
+  gateHC = digitalHand(EndPoGHC);
+
   if (!gate6O && gate6C && !gate7O && gate7C && !gate8O && gate8C && !gate9O && gate9C && !gateHO && gateHC) {
     digitalWrite(SIGError, LOW);
-    errCount = 0;
     Serial.println("GOK");  // gates ok, all in position
-    tGS.disable();
+    tC.disable();
     tR.disable();
+    tGC.enable();
   } else {
-    errCount = 4;
-    digitalWrite(SIGError, HIGH);
     if (!(!gate6O && gate6C)) Serial.println("ERR:G6C");
     if (!(!gate7O && gate7C)) Serial.println("ERR:G7C");
     if (!(!gate8O && gate8C)) Serial.println("ERR:G8C");
@@ -305,19 +295,24 @@ void gateChange() {
     gate6C = digitalRead(EndPoG6C);
     if (logIM6) {
       if (gate6O && !gate6C) {
+        open4log6 = 0;
         SFMes = "G6O";
         if (errCount > 0) --errCount;
-      } else if (!gate6O) {
-        if (errCount == 0) ++errCount;
+      } else {
         SFMes = "ERR:G6O";
+        if (errCount == 0 || errCount < 4) ++errCount;
       }
     } else {
-      if (!gate6O && gate6C) {
+      if (!gate6C && open4log6 < 0) {
+        open4log6 = waitGO * divTime; // sec
+        SFMes = "G6W";  // wait for login
+      } else if (!gate6O && gate6C) {
+        open4log6 = -1;
         SFMes = "G6C";
         if (errCount > 0) --errCount;
-      } else if (!gate6C) {
-        if (errCount == 0) ++errCount;
+      } else if (!gate6C && open4log6 == 0) {
 				SFMes = "ERR:G6C";
+        if (errCount == 0 || errCount < 4) ++errCount;
       }
     }
     Serial.println(SFMes);
@@ -329,19 +324,24 @@ void gateChange() {
     gate7C = digitalRead(EndPoG7C);
     if (logIM7) {
       if (gate7O && !gate7C) {
+        open4log7 = 0;
         SFMes = "G7O";
-       if (errCount > 0) --errCount;
-      } else if (!gate7O) {
-        if (errCount == 0) ++errCount;
+        if (errCount > 0) --errCount;
+      } else {
         SFMes = "ERR:G7O";
+        if (errCount == 0 || errCount < 4) ++errCount;
       }
     } else {
-      if (!gate7O && gate7C) {
+      if (!gate7C && open4log7 < 0) {
+        open4log7 = waitGO * divTime; // sec
+        SFMes = "G7W";  // wait for login
+      } else if (!gate7O && gate7C) {
+        open4log7 = -1;
         SFMes = "G7C";
         if (errCount > 0) --errCount;
-      } else if (!gate7C) {
-        if (errCount == 0) ++errCount;
+      } else if (!gate7C && open4log7 == 0) {
 				SFMes = "ERR:G7C";
+        if (errCount == 0 || errCount < 4) ++errCount;
       }
     }
     Serial.println(SFMes);
@@ -353,19 +353,24 @@ void gateChange() {
     gate8C = digitalRead(EndPoG8C);
     if (logIM8) {
       if (gate8O && !gate8C) {
+        open4log8 = 0;
         SFMes = "G8O";
         if (errCount > 0) --errCount;
-      } else if (!gate8O) {
-        if (errCount == 0) ++errCount;
+      } else {
         SFMes = "ERR:G8O";
+        if (errCount == 0 || errCount < 4) ++errCount;
       }
     } else {
-      if (!gate8O && gate8C) {
+      if (!gate8C && open4log8 < 0) {
+        open4log8 = waitGO * divTime; // sec
+        SFMes = "G8W";  // wait for login
+      } else if (!gate8O && gate8C) {
+        open4log8 = -1;
         SFMes = "G8C";
-       if (errCount > 0) --errCount;
-      } else if (!gate8C) {
-        if (errCount == 0) ++errCount;
+        if (errCount > 0) --errCount;
+      } else if (!gate8C && open4log8 == 0) {
 				SFMes = "ERR:G8C";
+        if (errCount == 0 || errCount < 4) ++errCount;
       }
     }
     Serial.println(SFMes);
@@ -377,19 +382,24 @@ void gateChange() {
     gate9C = digitalRead(EndPoG9C);
     if (logIM9) {
       if (gate9O && !gate9C) {
+        open4log9 = 0;
         SFMes = "G9O";
         if (errCount > 0) --errCount;
-      } else if (!gate9O) {
-        if (errCount == 0) ++errCount;
+      } else {
         SFMes = "ERR:G9O";
+        if (errCount == 0 || errCount < 4) ++errCount;
       }
     } else {
-      if (!gate9O && gate9C) {
+      if (!gate9C && open4log9 < 0) {
+        open4log9 = waitGO * divTime; // sec
+        SFMes = "G9W";  // wait for login
+      } else if (!gate9O && gate9C) {
+        open4log9 = -1;
         SFMes = "G9C";
         if (errCount > 0) --errCount;
-      } else if (!gate9C) {
-        if (errCount == 0) ++errCount;
+      } else if (!gate9C && open4log9 == 0) {
 				SFMes = "ERR:G9C";
+        if (errCount == 0 || errCount < 4) ++errCount;
       }
     }
     Serial.println(SFMes);
@@ -405,6 +415,78 @@ void gateChange() {
     } else if (!gateHO && gateHC) {
       Serial.println("GHC");
       tGH.restartDelayed(50);
+    }
+  }
+  if (open4log6 > 0) {
+    --open4log6;
+    if (!logIM6 && open4log6 == 1 && !gate6C) {
+      if (errCount == 0 || errCount < 4) ++errCount;
+      open4log6 = 0;
+      SFMes = "ERR:G6C";
+      Serial.println(SFMes);
+      tR.restart();
+      tGM.restartDelayed(50);
+    } else if (logIM6 && gate6O && !gate6C) {
+      if (errCount > 0) --errCount;
+      open4log6 = 0;
+      SFMes = "G6O";
+      Serial.println(SFMes);
+      tR.restart();
+      tGM.restartDelayed(50);
+    }
+  }
+  if (open4log7 > 0) {
+    --open4log7;
+    if (!logIM7 && open4log7 == 1 && !gate7C) {
+      if (errCount == 0 || errCount < 4) ++errCount;
+      open4log7 = 0;
+      SFMes = "ERR:G7C";
+      Serial.println(SFMes);
+      tR.restart();
+      tGM.restartDelayed(50);
+    } else if (logIM7 && gate7O && !gate7C) {
+      if (errCount > 0) --errCount;
+      open4log7 = 0;
+      SFMes = "G7O";
+      Serial.println(SFMes);
+      tR.restart();
+      tGM.restartDelayed(50);
+    }
+  }
+  if (open4log8 > 0) {
+    --open4log8;
+    if (!logIM8 && open4log8 == 1 && !gate8C) {
+      if (errCount == 0 || errCount < 4) ++errCount;
+      open4log8 = 0;
+      SFMes = "ERR:G8C";
+      Serial.println(SFMes);
+      tR.restart();
+      tGM.restartDelayed(50);
+    } else if (logIM8 && gate8O && !gate8C) {
+      if (errCount > 0) --errCount;
+      open4log8 = 0;
+      SFMes = "G8O";
+      Serial.println(SFMes);
+      tR.restart();
+      tGM.restartDelayed(50);
+    }
+  }
+  if (open4log9 > 0) {
+    --open4log9;
+    if (!logIM9 && open4log9 == 1 && !gate9C) {
+      if (errCount == 0 || errCount < 4) ++errCount;
+      open4log9 = 0;
+      SFMes = "ERR:G9C";
+      Serial.println(SFMes);
+      tR.restart();
+      tGM.restartDelayed(50);
+    } else if (logIM9 && gate9O && !gate9C) {
+      if (errCount > 0) --errCount;
+      open4log9 = 0;
+      SFMes = "G9O";
+      Serial.println(SFMes);
+      tR.restart();
+      tGM.restartDelayed(50);
     }
   }
   if (dustWaitT > 0) --dustWaitT;
@@ -425,7 +507,7 @@ void gateHA() {
         dustWaitT = -1;
       } else {
         digitalWrite(REL_Vac, LOW);
-        if (dustWaitT == -1) dustWaitT = 30 * 4; // *0,25 sec until next dust on
+        if (dustWaitT == -1) dustWaitT = divTime * 30; // *0,25 sec until next dust on
       }
     } else if (errCount > 0 && !gateHO && gateHC) --errCount;
   }
@@ -474,8 +556,12 @@ void evalSerialData() {
     getTime = 255;
   }
 
-  if (inStr.startsWith("SETRT")) { // set repeat messages
+  if (inStr.startsWith("SETRT") && inStr.length() == 6) { // set repeat messages
     tR.setIterations(inStr.substring(5).toInt());
+  }
+
+  if (inStr.startsWith("SETWT") && inStr.length() <=7) { // set repeat messages
+    waitGO = inStr.substring(5).toInt();
   }
 
   // Blast gate controll
@@ -486,7 +572,7 @@ void evalSerialData() {
         if (!logIM6) {
           logIM6 = HIGH;
           if (!gate6O) {
-            if (errCount == 0) ++errCount;
+            if (errCount == 0 || errCount < 4) ++errCount;
             SFMes = "ERR:G6O";
           }
         }
@@ -495,7 +581,7 @@ void evalSerialData() {
         if (!logIM7) {
           logIM7 = HIGH;
           if (!gate7O) {
-            if (errCount == 0) ++errCount;
+            if (errCount == 0 || errCount < 4) ++errCount;
             SFMes = "ERR:G7O";
           }
         }
@@ -504,7 +590,7 @@ void evalSerialData() {
         if (!logIM8) {
           logIM8 = HIGH;
           if (!gate8O) {
-            if (errCount == 0) ++errCount;
+            if (errCount == 0 || errCount < 4) ++errCount;
             SFMes = "ERR:G8O";
           }
         }
@@ -513,7 +599,7 @@ void evalSerialData() {
         if (!logIM9) {
           logIM9 = HIGH;
           if (!gate9O) {
-            if (errCount == 0) ++errCount;
+            if (errCount == 0 || errCount < 4) ++errCount;
             SFMes = "ERR:G9O";
           }
         }
@@ -532,7 +618,7 @@ void evalSerialData() {
         if (logIM6) {
           logIM6 = LOW;
           if (!gate6C) {
-            if (errCount == 0) ++errCount;
+            if (errCount == 0 || errCount < 4) ++errCount;
             SFMes = "ERR:G6C";
           }
         }
@@ -541,7 +627,7 @@ void evalSerialData() {
         if (logIM7) {
           logIM7 = LOW;
           if (!gate7C) {
-            if (errCount == 0) ++errCount;
+            if (errCount == 0 || errCount < 4) ++errCount;
             SFMes = "ERR:G7C";
           }
         }
@@ -550,7 +636,7 @@ void evalSerialData() {
         if (logIM8) {
           logIM8 = LOW;
           if (!gate8C) {
-            if (errCount == 0) ++errCount;
+            if (errCount == 0 || errCount < 4) ++errCount;
             SFMes = "ERR:G8C";
           }
         }
@@ -559,7 +645,7 @@ void evalSerialData() {
         if (logIM9) {
           logIM9 = LOW;
           if (!gate9C) {
-            if (errCount == 0) ++errCount;
+            if (errCount == 0 || errCount < 4) ++errCount;
             SFMes = "ERR:G9C";
           }
         }
