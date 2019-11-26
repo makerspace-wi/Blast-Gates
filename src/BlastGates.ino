@@ -300,7 +300,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
       } else {
         SFMes = "ERR:G6O";
-        if (errCount == 0 || errCount < 4) ++errCount;
+        if (errCount == 0) ++errCount;
       }
     } else {
       if (!gate6C && open4log6 < 0) {
@@ -312,7 +312,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
       } else if (!gate6C && open4log6 == 0) {
 				SFMes = "ERR:G6C";
-        if (errCount == 0 || errCount < 4) ++errCount;
+        if (errCount == 0) ++errCount;
       }
     }
     Serial.println(SFMes);
@@ -329,7 +329,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
       } else {
         SFMes = "ERR:G7O";
-        if (errCount == 0 || errCount < 4) ++errCount;
+        if (errCount == 0) ++errCount;
       }
     } else {
       if (!gate7C && open4log7 < 0) {
@@ -341,7 +341,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
       } else if (!gate7C && open4log7 == 0) {
 				SFMes = "ERR:G7C";
-        if (errCount == 0 || errCount < 4) ++errCount;
+        if (errCount == 0) ++errCount;
       }
     }
     Serial.println(SFMes);
@@ -358,7 +358,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
       } else {
         SFMes = "ERR:G8O";
-        if (errCount == 0 || errCount < 4) ++errCount;
+        if (errCount == 0) ++errCount;
       }
     } else {
       if (!gate8C && open4log8 < 0) {
@@ -370,7 +370,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
       } else if (!gate8C && open4log8 == 0) {
 				SFMes = "ERR:G8C";
-        if (errCount == 0 || errCount < 4) ++errCount;
+        if (errCount == 0) ++errCount;
       }
     }
     Serial.println(SFMes);
@@ -387,7 +387,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
       } else {
         SFMes = "ERR:G9O";
-        if (errCount == 0 || errCount < 4) ++errCount;
+        if (errCount == 0) ++errCount;
       }
     } else {
       if (!gate9C && open4log9 < 0) {
@@ -399,7 +399,7 @@ void gateChange() {
         if (errCount > 0) --errCount;
       } else if (!gate9C && open4log9 == 0) {
 				SFMes = "ERR:G9C";
-        if (errCount == 0 || errCount < 4) ++errCount;
+        if (errCount == 0) ++errCount;
       }
     }
     Serial.println(SFMes);
@@ -420,7 +420,7 @@ void gateChange() {
   if (open4log6 > 0) {
     --open4log6;
     if (!logIM6 && open4log6 == 1 && !gate6C) {
-      if (errCount == 0 || errCount < 4) ++errCount;
+      if (errCount == 0) ++errCount;
       open4log6 = 0;
       SFMes = "ERR:G6C";
       Serial.println(SFMes);
@@ -438,7 +438,7 @@ void gateChange() {
   if (open4log7 > 0) {
     --open4log7;
     if (!logIM7 && open4log7 == 1 && !gate7C) {
-      if (errCount == 0 || errCount < 4) ++errCount;
+      if (errCount == 0) ++errCount;
       open4log7 = 0;
       SFMes = "ERR:G7C";
       Serial.println(SFMes);
@@ -456,7 +456,7 @@ void gateChange() {
   if (open4log8 > 0) {
     --open4log8;
     if (!logIM8 && open4log8 == 1 && !gate8C) {
-      if (errCount == 0 || errCount < 4) ++errCount;
+      if (errCount == 0) ++errCount;
       open4log8 = 0;
       SFMes = "ERR:G8C";
       Serial.println(SFMes);
@@ -474,7 +474,7 @@ void gateChange() {
   if (open4log9 > 0) {
     --open4log9;
     if (!logIM9 && open4log9 == 1 && !gate9C) {
-      if (errCount == 0 || errCount < 4) ++errCount;
+      if (errCount == 0) ++errCount;
       open4log9 = 0;
       SFMes = "ERR:G9C";
       Serial.println(SFMes);
@@ -572,7 +572,7 @@ void evalSerialData() {
         if (!logIM6) {
           logIM6 = HIGH;
           if (!gate6O) {
-            if (errCount == 0 || errCount < 4) ++errCount;
+            if (errCount == 0) ++errCount;
             SFMes = "ERR:G6O";
           }
         }
@@ -581,7 +581,7 @@ void evalSerialData() {
         if (!logIM7) {
           logIM7 = HIGH;
           if (!gate7O) {
-            if (errCount == 0 || errCount < 4) ++errCount;
+            if (errCount == 0) ++errCount;
             SFMes = "ERR:G7O";
           }
         }
@@ -590,7 +590,7 @@ void evalSerialData() {
         if (!logIM8) {
           logIM8 = HIGH;
           if (!gate8O) {
-            if (errCount == 0 || errCount < 4) ++errCount;
+            if (errCount == 0) ++errCount;
             SFMes = "ERR:G8O";
           }
         }
@@ -599,7 +599,7 @@ void evalSerialData() {
         if (!logIM9) {
           logIM9 = HIGH;
           if (!gate9O) {
-            if (errCount == 0 || errCount < 4) ++errCount;
+            if (errCount == 0) ++errCount;
             SFMes = "ERR:G9O";
           }
         }
@@ -618,7 +618,7 @@ void evalSerialData() {
         if (logIM6) {
           logIM6 = LOW;
           if (!gate6C) {
-            if (errCount == 0 || errCount < 4) ++errCount;
+            if (errCount == 0) ++errCount;
             SFMes = "ERR:G6C";
           }
         }
@@ -627,7 +627,7 @@ void evalSerialData() {
         if (logIM7) {
           logIM7 = LOW;
           if (!gate7C) {
-            if (errCount == 0 || errCount < 4) ++errCount;
+            if (errCount == 0) ++errCount;
             SFMes = "ERR:G7C";
           }
         }
@@ -636,7 +636,7 @@ void evalSerialData() {
         if (logIM8) {
           logIM8 = LOW;
           if (!gate8C) {
-            if (errCount == 0 || errCount < 4) ++errCount;
+            if (errCount == 0) ++errCount;
             SFMes = "ERR:G8C";
           }
         }
@@ -645,7 +645,7 @@ void evalSerialData() {
         if (logIM9) {
           logIM9 = LOW;
           if (!gate9C) {
-            if (errCount == 0 || errCount < 4) ++errCount;
+            if (errCount == 0) ++errCount;
             SFMes = "ERR:G9C";
           }
         }
